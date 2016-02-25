@@ -1,0 +1,7 @@
+#!/usr/bin/johana
+
+var x = 42
+var y = 43
+
+say sqrt x
+say +(x, y)
