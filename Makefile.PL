@@ -32,7 +32,7 @@ WriteMakefile
                  },
   'INSTALLDIRS' => 'site',
   'EXE_FILES' => [
-                   'bin/sidef'
+                   'bin/johana'
                  ],
   'PL_FILES' => {}
 )

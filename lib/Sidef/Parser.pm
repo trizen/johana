@@ -69,34 +69,20 @@ package Sidef::Parser {
                 reduce => [0, 'reduce_operator'],
             },
 
-            static_obj_re => qr{\G
+            data_types_re => qr{\G
                 (?>
-                       nil\b                          (?{ state $x = bless({}, 'Sidef::Types::Nil::Nil') })
-                     | null\b                         (?{ state $x = Sidef::Types::Null::Null->new })
-                     | true\b                         (?{ Sidef::Types::Bool::Bool::TRUE })
-                     | false\b                        (?{ Sidef::Types::Bool::Bool::FALSE })
-                     | next\b                         (?{ state $x = bless({}, 'Sidef::Types::Block::Next') })
-                     | break\b                        (?{ state $x = bless({}, 'Sidef::Types::Block::Break') })
-                     | continue\b                     (?{ state $x = bless({}, 'Sidef::Types::Block::Continue') })
-                     | Block\b                        (?{ state $x = bless({}, 'Sidef::DataTypes::Block::Block') })
-                     | Backtick\b                     (?{ state $x = bless({}, 'Sidef::DataTypes::Glob::Backtick') })
-                     | ARGF\b                         (?{ state $x = Sidef::Types::Glob::FileHandle->new(fh => \*ARGV) })
-                     | STDIN\b                        (?{ state $x = Sidef::Types::Glob::FileHandle->stdin })
-                     | STDOUT\b                       (?{ state $x = Sidef::Types::Glob::FileHandle->stdout })
-                     | STDERR\b                       (?{ state $x = Sidef::Types::Glob::FileHandle->stderr })
-                     | Bool\b                         (?{ state $x = bless({}, 'Sidef::DataTypes::Bool::Bool') })
+                       Bool\b                         (?{ state $x = bless({}, 'Sidef::DataTypes::Bool::Bool') })
                      | FileHandle\b                   (?{ state $x = bless({}, 'Sidef::DataTypes::Glob::FileHandle') })
                      | DirHandle\b                    (?{ state $x = bless({}, 'Sidef::DataTypes::Glob::DirHandle') })
                      | Dir\b                          (?{ state $x = bless({}, 'Sidef::DataTypes::Glob::Dir') })
                      | File\b                         (?{ state $x = bless({}, 'Sidef::DataTypes::Glob::File') })
                      | Arr(?:ay)?+\b                  (?{ state $x = bless({}, 'Sidef::DataTypes::Array::Array') })
-                     | MultiArr(?:ay)?+\b             (?{ state $x = bless({}, 'Sidef::DataTypes::Array::MultiArray') })
                      | Pair\b                         (?{ state $x = bless({}, 'Sidef::DataTypes::Array::Pair') })
                      | Hash\b                         (?{ state $x = bless({}, 'Sidef::DataTypes::Hash::Hash') })
                      | Str(?:ing)?+\b                 (?{ state $x = bless({}, 'Sidef::DataTypes::String::String') })
                      | Num(?:ber)?+\b                 (?{ state $x = bless({}, 'Sidef::DataTypes::Number::Number') })
-                     | Inf\b                          (?{ state $x = Sidef::Types::Number::Inf->new })
-                     | NaN\b                          (?{ state $x = Sidef::Types::Number::Nan->new })
+                     | Block\b                        (?{ state $x = bless({}, 'Sidef::DataTypes::Block::Block') })
+                     | Backtick\b                     (?{ state $x = bless({}, 'Sidef::DataTypes::Glob::Backtick') })
                      | RangeNum(?:ber)?+\b            (?{ state $x = bless({}, 'Sidef::DataTypes::Range::RangeNumber') })
                      | RangeStr(?:ing)?+\b            (?{ state $x = bless({}, 'Sidef::DataTypes::Range::RangeString') })
                      | Socket\b                       (?{ state $x = bless({}, 'Sidef::DataTypes::Glob::Socket') })
@@ -106,41 +92,29 @@ package Sidef::Parser {
                      | Complex\b                      (?{ state $x = bless({}, 'Sidef::DataTypes::Number::Complex') })
                      | Regexp?\b                      (?{ state $x = bless({}, 'Sidef::DataTypes::Regex::Regex') })
                      | Object\b                       (?{ state $x = bless({}, 'Sidef::DataTypes::Object::Object') })
-                     | Sidef\b                        (?{ state $x = bless({}, 'Sidef::DataTypes::Sidef::Sidef') })
+                )
+            }x,
+
+            static_obj_re => qr{\G
+                (?>
+                       nil\b                          (?{ state $x = bless({}, 'Sidef::Types::Nil::Nil') })
+                     | null\b                         (?{ state $x = Sidef::Types::Null::Null->new })
+                     | true\b                         (?{ Sidef::Types::Bool::Bool::TRUE })
+                     | false\b                        (?{ Sidef::Types::Bool::Bool::FALSE })
+                     | next\b                         (?{ state $x = bless({}, 'Sidef::Types::Block::Next') })
+                     | break\b                        (?{ state $x = bless({}, 'Sidef::Types::Block::Break') })
+                     | continue\b                     (?{ state $x = bless({}, 'Sidef::Types::Block::Continue') })
+                     | ARGF\b                         (?{ state $x = bless({name => 'ARGF'}, 'Sidef::Meta::FileHandle') })
+                     | STDIN\b                        (?{ state $x = bless({name => 'STDIN'}, 'Sidef::Meta::FileHandle') })
+                     | STDOUT\b                       (?{ state $x = bless({name => 'STDOUT'}, 'Sidef::Meta::FileHandle') })
+                     | STDERR\b                       (?{ state $x = bless({name => 'STDERR'}, 'Sidef::Meta::FileHandle') })
+                     | Inf\b                          (?{ state $x = Sidef::Types::Number::Inf->new })
+                     | NaN\b                          (?{ state $x = Sidef::Types::Number::Nan->new })
                      | Sig\b                          (?{ state $x = Sidef::Sys::Sig->new })
                      | Sys\b                          (?{ state $x = Sidef::Sys::Sys->new })
                      | Perl\b                         (?{ state $x = Sidef::Perl::Perl->new })
-                     | Math\b                         (?{ state $x = Sidef::Math::Math->new })
                      | Time\b                         (?{ state $x = Sidef::Time::Time->new })
-                     | \$\.                           (?{ state $x = bless({name => '$.'}, 'Sidef::Variable::Magic') })
-                     | \$\?                           (?{ state $x = bless({name => '$?'}, 'Sidef::Variable::Magic') })
-                     | \$\$                           (?{ state $x = bless({name => '$$'}, 'Sidef::Variable::Magic') })
-                     | \$\^T\b                        (?{ state $x = bless({name => '$^T'}, 'Sidef::Variable::Magic') })
-                     | \$\|                           (?{ state $x = bless({name => '$|'}, 'Sidef::Variable::Magic') })
-                     | \$!                            (?{ state $x = bless({name => '$!'}, 'Sidef::Variable::Magic') })
-                     | \$"                            (?{ state $x = bless({name => '$"'}, 'Sidef::Variable::Magic') })
-                     | \$\\                           (?{ state $x = bless({name => '$\\'}, 'Sidef::Variable::Magic') })
-                     | \$@                            (?{ state $x = bless({name => '$@'}, 'Sidef::Variable::Magic') })
-                     | \$%                            (?{ state $x = bless({name => '$%'}, 'Sidef::Variable::Magic') })
-                     | \$~                            (?{ state $x = bless({name => '$~'}, 'Sidef::Variable::Magic') })
-                     | \$/                            (?{ state $x = bless({name => '$/'}, 'Sidef::Variable::Magic') })
-                     | \$&                            (?{ state $x = bless({name => '$&'}, 'Sidef::Variable::Magic') })
-                     | \$'                            (?{ state $x = bless({name => '$\''}, 'Sidef::Variable::Magic') })
-                     | \$`                            (?{ state $x = bless({name => '$`'}, 'Sidef::Variable::Magic') })
-                     | \$:                            (?{ state $x = bless({name => '$:'}, 'Sidef::Variable::Magic') })
-                     | \$\]                           (?{ state $x = bless({name => '$]'}, 'Sidef::Variable::Magic') })
-                     | \$\[                           (?{ state $x = bless({name => '$['}, 'Sidef::Variable::Magic') })
-                     | \$;                            (?{ state $x = bless({name => '$;'}, 'Sidef::Variable::Magic') })
-                     | \$,                            (?{ state $x = bless({name => '$,'}, 'Sidef::Variable::Magic') })
-                     | \$\^O\b                        (?{ state $x = bless({name => '$^O'}, 'Sidef::Variable::Magic') })
-                     | \$\^PERL\b                     (?{ state $x = bless({name => '$^X'}, 'Sidef::Variable::Magic') })
-                     | (?:\$0|\$\^SIDEF)\b            (?{ state $x = bless({name => '$0'}, 'Sidef::Variable::Magic') })
-                     | \$\)                           (?{ state $x = bless({name => '$)'}, 'Sidef::Variable::Magic') })
-                     | \$\(                           (?{ state $x = bless({name => '$('}, 'Sidef::Variable::Magic') })
-                     | \$<                            (?{ state $x = bless({name => '$<'}, 'Sidef::Variable::Magic') })
-                     | \$>                            (?{ state $x = bless({name => '$>'}, 'Sidef::Variable::Magic') })
-                     | ∞                              (?{ state $x = Sidef::Types::Number::Inf->new })
-                ) (?!::)
+                )
             }x,
             prefix_obj_re => do {
 
@@ -1017,7 +991,7 @@ package Sidef::Parser {
                            ? $self->parse_arg(code => $opt{code})
                            : $self->parse_obj(code => $opt{code})
                           );
-                return Sidef::Variable::NamedParam->new($name, $obj);
+                return Sidef::Types::Array::Pair->new(Sidef::Types::String::String->new($name), $obj);
             }
 
             # Declaration of variables
@@ -1901,6 +1875,16 @@ package Sidef::Parser {
             # Static object (like String or nil)
             if (/$self->{static_obj_re}/goc) {
                 return $^R;
+            }
+
+            if (/$self->{data_types_re}/goc) {
+                my $type = $^R;
+
+                if (/\G(?=\()/gc) {
+                    $type->{arg} = $self->parse_arg(code => \$_);
+                }
+
+                return $type;
             }
 
             if (/\G__MAIN__\b/gc) {

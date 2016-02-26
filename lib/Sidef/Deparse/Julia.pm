@@ -103,12 +103,16 @@ package Sidef::Deparse::Julia {
         $opts{header} .= <<"HEADER";
 module SidefRuntime
 
-function call(f::Function, args...)
+\@inline function call(f::Function, args...)
     f(args...)
 end
 
-function say(args...)
+\@inline function say(args...)
     println(join(map((x) -> string(x), args), ""))
+end
+
+\@inline function interpolate(::Type{AbstractString}, args...)
+    join(map((x) -> string(x), args), "")
 end
 
 HEADER
@@ -1299,15 +1303,7 @@ HEADER
                                         );
         }
         elsif ($ref eq 'Sidef::Types::Array::Pair') {
-            if (all { not defined($_) } @{$obj}) {
-                $code = $self->make_constant($ref, 'new', "Pair$refaddr");
-            }
-            else {
-                $code =
-                    $ref
-                  . '->new('
-                  . join(', ', map { defined($_) ? $self->deparse_expr({self => $_}) : 'undef' } @{$obj}) . ')';
-            }
+            $code = $self->deparse_expr({self => $obj->[0]}) . '=>' . $self->deparse_expr({self => $obj->[1]});
         }
         elsif ($ref eq 'Sidef::Types::Null::Null') {
             $code = $self->make_constant($ref, 'new', "Null$refaddr");
@@ -1397,6 +1393,10 @@ HEADER
         }
         elsif (exists $self->{data_types}{$ref}) {
             $code = $self->{data_types}{$ref};
+
+            if (exists($obj->{arg})) {
+                $code .= $self->deparse_args($obj->{arg});
+            }
         }
 
         # Array and hash indices

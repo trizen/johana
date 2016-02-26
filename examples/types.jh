@@ -1,0 +1,10 @@
+#!/usr/bin/johana
+
+func hello(String s) {
+    say "Hello, #{s}!"
+}
+
+hello("Johana")
+
+say String("hi")
+say Hash(a: 1, b: 2);
