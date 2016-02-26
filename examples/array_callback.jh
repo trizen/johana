@@ -1,0 +1,6 @@
+#!/usr/bin/johana
+
+func callback(i) { say i**2 }
+
+[1,2,3,4].each(callback)
+[1,2,3,4].each { |i| say sqrt(i) }

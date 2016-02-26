@@ -1,7 +1,12 @@
 bin/johana
 Build.PL
 Changes
+examples/ack.jh
+examples/anonymous_recursion.jh
+examples/array_callback.jh
 examples/fib.jh
+examples/for_loop.jh
+examples/jaro_distance.jh
 examples/types.jh
 examples/vars.jh
 lib/Sidef.pm

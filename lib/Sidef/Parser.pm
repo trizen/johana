@@ -83,8 +83,7 @@ package Sidef::Parser {
                      | Num(?:ber)?+\b                 (?{ state $x = bless({}, 'Sidef::DataTypes::Number::Number') })
                      | Block\b                        (?{ state $x = bless({}, 'Sidef::DataTypes::Block::Block') })
                      | Backtick\b                     (?{ state $x = bless({}, 'Sidef::DataTypes::Glob::Backtick') })
-                     | RangeNum(?:ber)?+\b            (?{ state $x = bless({}, 'Sidef::DataTypes::Range::RangeNumber') })
-                     | RangeStr(?:ing)?+\b            (?{ state $x = bless({}, 'Sidef::DataTypes::Range::RangeString') })
+                     | Range\b                        (?{ state $x = bless({}, 'Sidef::DataTypes::Range::Range') })
                      | Socket\b                       (?{ state $x = bless({}, 'Sidef::DataTypes::Glob::Socket') })
                      | Pipe\b                         (?{ state $x = bless({}, 'Sidef::DataTypes::Glob::Pipe') })
                      | Ref\b                          (?{ state $x = bless({}, 'Sidef::Variable::Ref') })
@@ -1881,7 +1880,7 @@ package Sidef::Parser {
                 my $type = $^R;
 
                 if (/\G(?=\()/gc) {
-                    $type->{arg} = $self->parse_arg(code => \$_);
+                    return bless({arg => $self->parse_arg(code => \$_)}, ref($type));
                 }
 
                 return $type;
@@ -2445,6 +2444,15 @@ package Sidef::Parser {
                     push @{$struct->{$self->{class}}[-1]{ind}}, {array => $ind};
                 }
 
+                if (/\G\h*(?!==|=>|=~)=\h*/gc) {
+                    my $arg = (
+                               /\G(?=\()/
+                               ? $self->parse_arg(code => \$_)
+                               : $self->parse_obj(code => \$_)
+                              );
+                    $struct->{$self->{class}}[-1]{ind}[-1]{assign} = $arg;
+                }
+
                 $parsed ||= 1;
                 redo;
             }
@@ -2690,12 +2698,12 @@ package Sidef::Parser {
                     push @{$struct{$self->{class}}[-1]{call}}, @{$methods};
                 }
 
-                if (/\G\h*\.?(\@)\h*(?=[\[\{])/gc) {
-                    push @{$struct{$self->{class}}[-1]{call}}, {method => $1};
-                    redo;
-                }
+                #if (/\G\h*\.?(\@)\h*(?=[\[\{])/gc) {
+                #    push @{$struct{$self->{class}}[-1]{call}}, {method => $1};
+                #    redo;
+                #}
 
-                if (/\G\h*(?=\()/gc) {
+                if (/\G(?=\()/gc) {
                     my $arg = $self->parse_arg(code => $opt{code});
 
                     push @{$struct{$self->{class}}[-1]{call}},

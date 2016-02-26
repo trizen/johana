@@ -48,6 +48,8 @@ package Sidef::Deparse::Julia {
 
             op_alias => {
 
+                '//' => 'div',
+
                 #'==' => 'eq',
                 #'!=' => 'ne',
 
@@ -72,8 +74,7 @@ package Sidef::Deparse::Julia {
                   Sidef::Types::Number::Number            Number
                   Sidef::DataTypes::Number::Complex       Complex
                   Sidef::Types::Number::Complex           Complex
-                  Sidef::DataTypes::Range::RangeNumber    Range
-                  Sidef::DataTypes::Range::RangeString    SidefTypes_Range_RangeString
+                  Sidef::DataTypes::Range::Range          Range
                   Sidef::DataTypes::Block::Block          Function
                   Sidef::DataTypes::Glob::Socket          Sidef_Types_Glob_Socket
                   Sidef::DataTypes::Glob::Pipe            Sidef_Types_Glob_Pipe
@@ -91,8 +92,8 @@ package Sidef::Deparse::Julia {
             reassign_ops => {map (("$_=" => $_), qw(+ - % * // / & | ^ ** && || << >> ÷))},
 
             inc_dec_ops => {
-                            '++' => 'inc',
-                            '--' => 'dec',
+                            '++' => 'succ',
+                            '--' => 'prev',
                            },
             %args,
                    );
@@ -102,6 +103,9 @@ package Sidef::Deparse::Julia {
 
         $opts{header} .= <<"HEADER";
 module SidefRuntime
+
+import Base.*,
+       Base.!;
 
 \@inline function call(f::Function, args...)
     f(args...)
@@ -115,11 +119,111 @@ end
     join(map((x) -> string(x), args), "")
 end
 
+function *(f::Function, i::Int64)
+    for j in 1:i
+        f(j)
+    end
+end
+
+\@inline function each(a::Array, f::Function)
+    for i in a
+        f(i)
+    end
+end
+
+function call(::Type{Range}, i::Int64, j::Int64)
+    UnitRange(i, j)
+end
+
+function call(::Type{Range}, i::Int64, j::Int64, k::Int64)
+    StepRange(i, k, j)
+end
+
+function call(::Type{Range}, i::Number, j::Number)
+    i:j
+end
+
+function call(::Type{Range}, i::Number, j::Number, k::Number)
+    i:k:j
+end
+
+function len(a::Array)
+    length(a)
+end
+
+function isEmpty(a::Array)
+    isempty(a)
+end
+
+function range(i::Int64)
+    0:i-1
+end
+
+function range(i::Number, j::Number)
+    i:j
+end
+
+function getIndex(a::Array, i::Number)
+
+    i = round(Int, i)
+    if (length(a) <= i)
+        return Void()
+    end
+
+    a[i+1]
+end
+
+function setIndex(a::Array, v::Any, i::Number)
+
+    i = round(Int, i)
+    len = length(a)
+
+    if (len <= i)
+        for _ in len:i+1
+            push!(a, Void())
+        end
+    end
+
+    a[i+1] = v
+end
+
+function !(::Void)
+    true
+end
+
+function toBool(item::Number)
+    item != 0
+end
+
+function toBool(item::Bool)
+    item
+end
+
+function toBool(item::Void)
+    false
+end
+
+function toBool(item::Any)
+    !isempty(item)
+end
+
+function toString(item)
+    string(item)
+end
+
+function succ(n::Number)
+    n+1
+end
+
+function prev(n::Number)
+    n-1
+end
+
 HEADER
 
         if (exists $opts{opt}{P}) {
             my $precision = abs(int($opts{opt}{P}));
-            $opts{header} .= "local \$Sidef::Types::Number::Number::PREC = 4*$precision;\n";
+            $opts{header} .= "# change precision\n";
         }
 
         if (exists $opts{opt}{M}) {
@@ -141,7 +245,7 @@ HEADER
                 $round = 0;
             }
 
-            $opts{header} .= "local \$Sidef::Types::Number::Number::ROUND = $round;\n";
+            $opts{header} .= "# change rounding\n";
         }
 
         %addr    = ();
@@ -444,6 +548,9 @@ HEADER
 
     sub _dump_indices {
         my ($self, $array) = @_;
+
+        return join(', ', map { ref($_) ? ($self->deparse_expr(ref($_) eq 'HASH' ? $_ : {self => $_})) : $_ } @{$array});
+
         '[' . join(
             ', ',
             map {
@@ -1101,7 +1208,7 @@ HEADER
         elsif ($ref eq 'Sidef::Types::Bool::Bool') {
 
             #$code = $self->make_constant($ref, 'new', ${$obj} ? ("true$refaddr", 1) : ("false$refaddr", 0));
-            $code = ${$obj} ? 'TRUE' : 'FALSE';    #'true' : 'false';
+            $code = ${$obj} ? 'true' : 'false';
         }
         elsif ($ref eq 'Sidef::Types::Regex::Regex') {
             $code =
@@ -1136,10 +1243,7 @@ HEADER
             $code =
                 'for '
               . $var . ' in '
-              . $self->deparse_expr({self => $obj->{array}})
-              . '.value ' . "\n"
-              . (' ' x ($Sidef::SPACES + $Sidef::SPACES_INCR))
-              . "isa($var, Number) && ($var = Sidef_Types_Number_Number($var))\n"
+              . $self->deparse_expr({self => $obj->{array}}) . "\n"
               . $self->deparse_bare_block($obj->{block}{code});
         }
         elsif ($ref eq 'Sidef::Types::Bool::Ternary') {
@@ -1229,13 +1333,7 @@ HEADER
         }
         elsif ($ref eq 'Sidef::Types::Block::Return') {
             if (not exists $expr->{call}) {
-
-                if (exists $self->{function}) {
-                    $code = "goto END$self->{function}";
-                }
-                else {
-                    $code = 'return Sidef::Types::Block::Return->new';
-                }
+                $code = 'return;';
             }
         }
         elsif ($ref eq 'Sidef::Math::Math') {
@@ -1314,9 +1412,6 @@ HEADER
         elsif ($ref eq 'Sidef::Module::Func') {
             $code = $self->make_constant($ref, '__NEW__', "MOD_F$refaddr", $self->_dump_string($obj->{module}));
         }
-        elsif ($ref eq 'Sidef::Types::Range::RangeNumber' or $ref eq 'Sidef::Types::Range::RangeString') {
-            $code = $self->_normalize_type($ref);
-        }
         elsif ($ref eq 'Sidef::Types::Glob::Backtick') {
             $code = $self->make_constant($ref, 'new', "Backtick$refaddr", $self->_dump_string(${$obj}));
         }
@@ -1364,8 +1459,7 @@ HEADER
         }
         elsif ($ref eq 'Sidef::Meta::Warning') {
             my @args = $self->deparse_args($obj->{arg});
-            $code = qq~((CORE::warn(@args, " at \Q$obj->{file}\E line $obj->{line}\\n")) ? ~
-              . qq~(Sidef::Types::Bool::Bool::FALSE) : (Sidef::Types::Bool::Bool::TRUE))~;
+            $code = qq~((CORE::warn(@args, " at \Q$obj->{file}\E line $obj->{line}\\n")) ? ~ . qq~(false) : (true))~;
         }
         elsif ($ref eq 'Sidef::Object::Object') {
             $code = $self->make_constant($ref, 'new', "Object$refaddr");
@@ -1409,11 +1503,21 @@ HEADER
 
                     my $pos = $ind->{array};
 
-                    if (substr($code, -1) eq '@') {
-                        $code .= $self->_dump_unpacked_indices($pos);
+                    #if (substr($code, -1) eq '@') {
+                    #    $code .= $self->_dump_unpacked_indices($pos);
+                    #}
+                    #else {
+                    #$code .= $self->_dump_indices($pos);
+                    #}
+
+                    if (exists $ind->{assign}) {
+                        $code =
+                            "setIndex($code,"
+                          . $self->deparse_expr({self => $ind->{assign}}) . ','
+                          . $self->_dump_indices($pos) . ')';
                     }
                     else {
-                        $code = $code . $self->_dump_indices($pos);
+                        $code = "getIndex($code," . $self->_dump_indices($pos) . ')';
                     }
                 }
                 else {
@@ -1424,7 +1528,7 @@ HEADER
                         $code .= $self->_dump_unpacked_lookups($key);
                     }
                     else {
-                        $code = $code . $self->_dump_lookups($key);
+                        $code .= $self->_dump_lookups($key);
                     }
                 }
 
@@ -1528,7 +1632,8 @@ HEADER
 
                     # Lazy operators, such as: ||, &&, etc...
                     if (exists($self->{lazy_ops}{$method})) {
-                        $code = $code . $self->{lazy_ops}{$method} . $self->deparse_block_expr(@{$call->{arg}}) . ' ';
+                        $code =
+                          "toBool($code)" . $self->{lazy_ops}{$method} . $self->deparse_block_expr(@{$call->{arg}}) . ' ';
                         next;
                     }
 
@@ -1682,7 +1787,7 @@ HEADER
                             }
                             elsif ($method eq '...') {
                                 if (not exists $call->{arg}) {
-                                    $code .= '.value...';
+                                    $code .= '...';
                                     next;
                                 }
                             }

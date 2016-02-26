@@ -1,0 +1,17 @@
+#!/usr/bin/johana
+
+for i in Range(1, 10) {
+    say "unit range: #{i}"
+}
+
+for i in Range(1, 10, 2) {
+    say "step range: #{i}"
+}
+
+for i in Range(1, 10, 2.5) {
+    say "float range: #{i}"
+}
+
+for i in Range(1, 6.5) {
+    say "float range: #{i}"
+}

@@ -15,13 +15,13 @@ use File::Spec::Functions qw(catfile catdir);
 use lib 'lib';
 require Sidef;
 
-my $scripts_dir = 'scripts';
+my $scripts_dir = 'examples';
 
 my @scripts;
 find {
     no_chdir => 1,
     wanted   => sub {
-        if (/\.sf\z/) {
+        if (/\.jh\z/) {
             push @scripts, $_;
         }
     },
@@ -45,7 +45,7 @@ foreach my $sidef_script (@scripts) {
 
     is(ref($struct), 'HASH');
 
-    my $deparser = Sidef::Deparse::Perl->new(namespaces => \@Sidef::NAMESPACES);
+    my $deparser = Sidef::Deparse::Julia->new(namespaces => \@Sidef::NAMESPACES);
     my $code = $deparser->deparse($struct);
 
     ok($code ne '');

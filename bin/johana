@@ -265,7 +265,7 @@ sub execute_struct {
                                             );
     local $Sidef::DEPARSER = $deparser;
     my $code = $deparser->deparse($struct);
-    exec("julia", "-e", $code);
+    $return ? system("julia", "-e", $code) : exec("julia", "-e", $code);
 }
 
 sub output_usage {
