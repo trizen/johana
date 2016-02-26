@@ -219,6 +219,10 @@ function prev(n::Number)
     n-1
 end
 
+function call(::Colon, a, b)
+    Pair(a, b)
+end
+
 HEADER
 
         if (exists $opts{opt}{P}) {
@@ -1200,7 +1204,10 @@ HEADER
             $code = $self->make_constant($ref, 'new', "Nan$refaddr");
         }
         elsif ($ref eq 'Sidef::Types::String::String') {
-            $code = $self->make_constant($ref, 'new', "String$refaddr", $self->_dump_string(${$obj}));
+            $code = $self->_dump_string($$obj);
+        }
+        elsif ($ref eq 'Sidef::Types::Symbol::Symbol') {
+            $code = ':' . $$obj;
         }
         elsif ($ref eq 'Sidef::Types::Array::Array' or $ref eq 'Sidef::Types::Array::HCArray') {
             $code = $self->_dump_array('Sidef::Types::Array::Array', $obj);
@@ -1722,15 +1729,13 @@ HEADER
                     }
 
                     # Prefix symbol
-                    if ($ref eq 'Sidef::Prefix::Symbol') {
+                    if ($ref eq 'Sidef::Prefix::Operator') {
 
                         if (exists $self->{op_alias}{$method}) {
-                            $code = '(' . $self->{op_alias}{$method} . ')' . $self->deparse_args(@{$call->{arg}});
-                        }
-                        else {
-                            $code = '(' . $method . ')' . $self->deparse_args(@{$call->{arg}});
+                            $method = $self->{op_alias}{$method};
                         }
 
+                        $code = '(' . $method . ')' . $self->deparse_args(@{$call->{arg}});
                         next;
                     }
 

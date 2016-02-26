@@ -120,7 +120,7 @@ package Sidef::Parser {
                 local $" = q{|};
 
                 qr{\G
-              (?:
+                (?:
                   if\b                                      (?{ bless({}, 'Sidef::Types::Block::If') })
                 | while\b                                   (?{ bless({}, 'Sidef::Types::Block::While') })
                 | try\b                                     (?{ Sidef::Types::Block::Try->new })
@@ -140,7 +140,7 @@ package Sidef::Parser {
                         )
                     )
 
-                    (?<op>(?&ops)))                          (?{ state $x = bless({}, 'Sidef::Prefix::Symbol') })
+                    (?<op>(?&ops)))                          (?{ state $x = bless({}, 'Sidef::Prefix::Operator') })
               )
             }x,;
             },
@@ -151,36 +151,36 @@ package Sidef::Parser {
                 |(?: ["“„”] | :(?:Q\b. | (?!\w). ))                        (?{ [qw(1 new Sidef::Types::String::String)] })
 
                 # File
-                | :f\b.                                                    (?{ [qw(0 new Sidef::Types::Glob::File)] })
-                | :F\b.                                                    (?{ [qw(1 new Sidef::Types::Glob::File)] })
+                | :f["']                                                    (?{ [qw(0 new Sidef::Types::Glob::File)] })
+                | :F["']                                                    (?{ [qw(1 new Sidef::Types::Glob::File)] })
 
                 # Dir
-                | :d\b.                                                    (?{ [qw(0 new Sidef::Types::Glob::Dir)] })
-                | :D\b.                                                    (?{ [qw(1 new Sidef::Types::Glob::Dir)] })
+                | :d["']                                                    (?{ [qw(0 new Sidef::Types::Glob::Dir)] })
+                | :D["']                                                    (?{ [qw(1 new Sidef::Types::Glob::Dir)] })
 
                 # Pipe
-                | :p\b.                                                    (?{ [qw(0 new Sidef::Types::Glob::Pipe)] })
-                | :P\b.                                                    (?{ [qw(1 new Sidef::Types::Glob::Pipe)] })
+                | :p["']                                                    (?{ [qw(0 new Sidef::Types::Glob::Pipe)] })
+                | :P["']                                                    (?{ [qw(1 new Sidef::Types::Glob::Pipe)] })
 
                 # Backtick
-                | :x\b.                                                    (?{ [qw(0 new Sidef::Types::Glob::Backtick)] })
+                | :x["']                                                    (?{ [qw(0 new Sidef::Types::Glob::Backtick)] })
                 | (?: :X\b. | ` )                                          (?{ [qw(1 new Sidef::Types::Glob::Backtick)] })
 
                 # Bytes
-                | :b\b.                                                    (?{ [qw(0 bytes Sidef::Types::Array::Array)] })
-                | :B\b.                                                    (?{ [qw(1 bytes Sidef::Types::Array::Array)] })
+                | :b["']                                                    (?{ [qw(0 bytes Sidef::Types::Array::Array)] })
+                | :B["']                                                    (?{ [qw(1 bytes Sidef::Types::Array::Array)] })
 
                 # Chars
-                | :c\b.                                                    (?{ [qw(0 chars Sidef::Types::Array::Array)] })
-                | :C\b.                                                    (?{ [qw(1 chars Sidef::Types::Array::Array)] })
+                | :c["']                                                    (?{ [qw(0 chars Sidef::Types::Array::Array)] })
+                | :C["']                                                    (?{ [qw(1 chars Sidef::Types::Array::Array)] })
 
                 # Graphemes
-                | :g\b.                                                    (?{ [qw(0 graphemes Sidef::Types::Array::Array)] })
-                | :G\b.                                                    (?{ [qw(1 graphemes Sidef::Types::Array::Array)] })
+                | :g["']                                                    (?{ [qw(0 graphemes Sidef::Types::Array::Array)] })
+                | :G["']                                                    (?{ [qw(1 graphemes Sidef::Types::Array::Array)] })
 
                 # Symbols
-                | :s\b.                                                    (?{ [qw(0 __NEW__ Sidef::Module::OO)] })
-                | :S\b.                                                    (?{ [qw(0 __NEW__ Sidef::Module::Func)] })
+                | :s["']                                                    (?{ [qw(0 __NEW__ Sidef::Module::OO)] })
+                | :S["']                                                    (?{ [qw(0 __NEW__ Sidef::Module::Func)] })
              )
             }xs,
             built_in_classes => {
@@ -978,9 +978,7 @@ package Sidef::Parser {
             # Bareword followed by a fat comma or preceded by a colon
             if (   /\G:([_\pL\pN]+)/gc
                 || /\G([_\pL][_\pL\pN]*)(?=\h*=>)/gc) {
-
-                # || /\G([_\pL][_\pL\pN]*)(?=\h*=>|:(?![=:]))/gc) {
-                return Sidef::Types::String::String->new($1);
+                return bless(\(my $sym = $1), 'Sidef::Types::Symbol::Symbol');
             }
 
             if (/\G([_\pL][_\pL\pN]*):(?![=:])/gc) {
