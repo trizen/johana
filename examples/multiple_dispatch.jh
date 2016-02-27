@@ -1,4 +1,4 @@
-#!/usr/bin/johana
+#!/usr/bin/ruby
 
 func foo(String a) {
     say "string: #{a}"

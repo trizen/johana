@@ -1,4 +1,4 @@
-#!/usr/bin/johana
+#!/usr/bin/ruby
 
 for i in Range(1, 10) {
     say "unit range: #{i}"

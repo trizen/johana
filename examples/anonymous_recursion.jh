@@ -1,4 +1,4 @@
-#!/usr/bin/johana
+#!/usr/bin/ruby
 
 { |i|
     func (n) {

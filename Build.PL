@@ -13,13 +13,10 @@ my $builder = Module::Build->new(
 
     module_name        => 'Sidef',
     license            => 'perl',
-    dist_author        => [
-                            q{Daniel Șuteu   (<trizenx@gmail.com>)},
-                            q{Ioana Fălcușan (<ioanaflavia@gmail.com>)},
-                          ],
+    dist_author        => q{Daniel Șuteu   (<trizenx@gmail.com>)},
     dist_version_from  => 'lib/Sidef.pm',
-    dist_abstract      => 'The Sidef Programming Language',
-    release_status     => 'stable',
+    dist_abstract      => 'The Johana Programming Language',
+    release_status     => 'unstable',
     configure_requires => {
                            'Module::Build' => 0,
                           },
@@ -29,14 +26,13 @@ my $builder = Module::Build->new(
 
     meta_merge => {
                    resources => {
-                                 repository => 'https://github.com/trizen/sidef'
+                                 repository => 'https://github.com/trizen/johana'
                                 }
                   },
 
     requires => {
                  'perl'           => '5.16.1',
                  'utf8'           => 0,
-                 'Memoize'        => 0,
                  'Cwd'            => 0,
                  'File::Spec'     => 0,
                  'File::Path'     => 0,
@@ -44,10 +40,7 @@ my $builder = Module::Build->new(
                  'File::Find'     => 0,
                  'File::Basename' => 0,
                  'List::Util'     => 1.33,
-                 'Math::MPFR'     => 3.29,
-                 'Math::MPC'      => 0,
-                 'Math::GMPq'     => 0.39,
-                 'Math::GMPz'     => 0,
+                 'Math::BigRat'   => 0,
                  'Socket'         => 0,
                  'Fcntl'          => 0,
                  'Encode'         => 0,

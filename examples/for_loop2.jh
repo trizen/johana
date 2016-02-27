@@ -1,0 +1,17 @@
+#!/usr/bin/ruby
+
+var people = [[1,2,3],[4,5,6]]
+
+for (a, b) in people {
+    println(a)
+    println(b)
+}
+
+for (u, v) in people {
+    say u
+    say v
+}
+
+for d in people {
+    say d
+}

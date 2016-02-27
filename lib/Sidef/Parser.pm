@@ -2502,55 +2502,67 @@ package Sidef::Parser {
             push @{$struct{$self->{class}}}, {self => $obj};
 
             # for var in array { ... }
-            if (ref($obj) eq 'Sidef::Types::Block::For' and /\G($self->{var_name_re})\h+in\h+/gc) {
-                my ($var_name, $class_name) = $self->get_name_and_class($1);
+            if (ref($obj) eq 'Sidef::Types::Block::For') {
 
-                my $array = (
-                             /\G(?=\()/
-                             ? $self->parse_arg(code => $opt{code})
-                             : $self->parse_obj(code => $opt{code})
-                            );
+                if (/\G\h*(?=\{)/gc) {
+                    $obj->{blocK} = $self->parse_block(code => $opt{code});
+                    bless $obj, 'Sidef::Types::Block::Loop';
+                }
+                else {
 
-                my $variable = bless(
-                                     {
-                                      class => $class_name,
-                                      name  => $var_name,
-                                      type  => 'var',
-                                     },
-                                     'Sidef::Variable::Variable'
-                                    );
+                    my $class_name = $self->{class};
+                    my $vars_end   = $#{$self->{vars}{$class_name}};
 
-                my $vars_len = $#{$self->{vars}{$class_name}} + 1;
+                    /\G\h*/gc;
+                    my $vars = (
+                        /\G($self->{var_name_re})/gc
+                        ? do {
+                            my $code = $1;
+                            $self->parse_init_vars(code => \$code,
+                                                   type => 'var',);
+                          }
+                        : $self->parse_init_vars(
+                                                 code => $opt{code},
+                                                 type => 'var',
+                                                )
+                               );
 
-                unshift @{$self->{vars}{$class_name}},
-                  {
-                    obj   => $variable,
-                    name  => $var_name,
-                    count => 1,
-                    type  => 'var',
-                    line  => $self->{line},
-                  };
+                    /\G\h*in\h*/gc
+                      || $self->fatal_error(
+                                            error => "expected the token 'in' after variable declaration in for-loop",
+                                            code  => $_,
+                                            pos   => pos($_),
+                                           );
 
-                my $block = (
-                             /\G\h*(?=\{)/gc
-                             ? $self->parse_block(code => $opt{code})
-                             : $self->fatal_error(
-                                                  error => "expected a block after the token 'in': for $var_name in { ... }",
-                                                  code  => $_,
-                                                  pos   => pos($_),
-                                                 )
-                            );
+                    my $array = (
+                                 /\G(?=\()/
+                                 ? $self->parse_arg(code => $opt{code})
+                                 : $self->parse_obj(code => $opt{code})
+                                );
 
-                # Remove the loop variable from the current scope
-                splice(@{$self->{vars}{$class_name}}, $#{$self->{vars}{$class_name}} - $vars_len, 1);
+                    my $block = (
+                                 /\G\h*(?=\{)/gc
+                                 ? $self->parse_block(code => $opt{code})
+                                 : $self->fatal_error(
+                                                      error => "expected a block after the token 'in': for (...) in { ... }",
+                                                      code  => $_,
+                                                      pos   => pos($_),
+                                                     )
+                                );
 
-                # Store the info
-                $obj->{var}   = $variable;
-                $obj->{block} = $block;
-                $obj->{array} = $array;
+                    # Remove the for-loop variables from the current scope
+                    splice(@{$self->{vars}{$class_name}},
+                           $#{$self->{vars}{$class_name}} - $vars_end - scalar(@{$vars}),
+                           scalar(@{$vars}));
 
-                # Re-bless the $obj in a different class
-                bless $obj, 'Sidef::Types::Block::ForIn';
+                    # Store the info
+                    $obj->{vars}  = $vars;
+                    $obj->{block} = $block;
+                    $obj->{array} = $array;
+
+                    # Re-bless the $obj into a different class
+                    bless $obj, 'Sidef::Types::Block::ForIn';
+                }
             }
             elsif ($obj_key) {
                 my $arg = (
@@ -2562,7 +2574,7 @@ package Sidef::Parser {
                 if (defined $arg) {
                     my @arg = ($arg);
 
-                    if (ref($obj) eq 'Sidef::Types::Block::For') {
+                    if (ref($obj) eq 'Sidef::Types::Block::For') {    # this will probably be removed
 
                         if ($#{$arg->{$self->{class}}} == 2) {
                             @arg = (
@@ -2616,7 +2628,7 @@ package Sidef::Parser {
                                               );
                         }
                     }
-                    elsif (ref($obj) eq 'Sidef::Types::Block::ForEach') {
+                    elsif (ref($obj) eq 'Sidef::Types::Block::ForEach') {    # this will probably be removed
                         if (/\G\h*(?=\{)/gc) {
                             my $block = $self->parse_block(code => $opt{code}, topic_var => 1);
 

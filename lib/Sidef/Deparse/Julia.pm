@@ -1344,10 +1344,13 @@ HEADER
             die "ERROR: the C-for loop is not supported, yet!";
         }
         elsif ($ref eq 'Sidef::Types::Block::ForIn') {
-            my $var = $self->deparse_expr({self => $obj->{var}});
+
+            #my $var = $self->deparse_expr({self => $obj->{var}});
+            my @vars = map { $self->deparse_expr({self => $_}) } @{$obj->{vars}};
+
             $code =
                 'for '
-              . $var . ' in '
+              . (@vars == 1 ? $vars[0] : ('(' . join(', ', @vars) . ')')) . ' in '
               . $self->deparse_expr({self => $obj->{array}}) . "\n"
               . $self->deparse_bare_block($obj->{block}{code});
         }

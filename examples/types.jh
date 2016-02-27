@@ -1,4 +1,4 @@
-#!/usr/bin/johana
+#!/usr/bin/ruby
 
 func hello(String s) {
     say "Hello, #{s}!"

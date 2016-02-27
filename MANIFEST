@@ -7,6 +7,7 @@ examples/arithmetic_coding.jh
 examples/array_callback.jh
 examples/fib.jh
 examples/for_loop.jh
+examples/for_loop2.jh
 examples/jaro_distance.jh
 examples/matrix.jh
 examples/multiple_dispatch.jh

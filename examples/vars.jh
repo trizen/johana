@@ -1,4 +1,4 @@
-#!/usr/bin/johana
+#!/usr/bin/ruby
 
 var x = 42
 var y = 43
