@@ -2513,19 +2513,33 @@ package Sidef::Parser {
                     my $class_name = $self->{class};
                     my $vars_end   = $#{$self->{vars}{$class_name}};
 
+                    my @vars;
+
                     /\G\h*/gc;
-                    my $vars = (
-                        /\G($self->{var_name_re})/gc
-                        ? do {
-                            my $code = $1;
-                            $self->parse_init_vars(code => \$code,
-                                                   type => 'var',);
-                          }
-                        : $self->parse_init_vars(
-                                                 code => $opt{code},
-                                                 type => 'var',
-                                                )
+                    while (/\G($self->{var_name_re})/gc) {
+
+                        my $name = $1;
+                        push @vars,
+                          bless(
+                                {
+                                 name  => $name,
+                                 type  => 'var',
+                                 class => $class_name,
+                                },
+                                'Sidef::Variable::Variable'
                                );
+
+                        unshift @{$self->{vars}{$class_name}},
+                          {
+                            obj   => $vars[-1],
+                            name  => $name,
+                            count => 1,
+                            type  => 'var',
+                            line  => $self->{line},
+                          };
+
+                        /\G\h*,\h*/gc && next;
+                    }
 
                     /\G\h*in\h*/gc
                       || $self->fatal_error(
@@ -2552,11 +2566,11 @@ package Sidef::Parser {
 
                     # Remove the for-loop variables from the current scope
                     splice(@{$self->{vars}{$class_name}},
-                           $#{$self->{vars}{$class_name}} - $vars_end - scalar(@{$vars}),
-                           scalar(@{$vars}));
+                           $#{$self->{vars}{$class_name}} - $vars_end - scalar(@vars),
+                           scalar(@vars));
 
                     # Store the info
-                    $obj->{vars}  = $vars;
+                    $obj->{vars}  = \@vars;
                     $obj->{block} = $block;
                     $obj->{array} = $array;
 
