@@ -1,0 +1,119 @@
+#!/usr/bin/johana
+
+# Work with: johana -B arithmetic_coding.jh
+
+func cumulative_freq(freq) {
+    var cf = Hash()
+    var total = 0
+    for b in Range(0, 255) {
+        if (freq.hasKey(b)) {
+            cf[b] = total
+            total += freq[b]
+        }
+    }
+    return cf
+}
+
+func arithmethic_coding(bytes, radix=10) {
+
+    # The frequency characters
+    var freq = Hash()
+    for b in bytes {
+        if (freq.hasKey(b)) {
+            freq[b] = (freq[b] + 1)
+        }
+        else {
+           freq[b] = 1
+        }
+    }
+
+    # The cumulative frequency table
+    var cf = cumulative_freq(freq)
+
+    # Base
+    var base = bytes.len
+
+    # Lower bound
+    var L = 0
+
+    # Product of all frequencies
+    var pf = 1
+
+    # Each term is multiplied by the product of the
+    # frequencies of all previously occurring symbols
+    for b in bytes {
+        #(L *= base) += cf[b]*pf
+        L = (L*base + cf[b]*pf)
+        pf *= freq[b]
+    }
+
+    # Upper bound
+    var U = L+pf
+
+    var pow = log(radix, pf).toInt
+    var enc = ((U-1) // radix**pow)
+
+    return (enc, pow, freq)
+}
+
+func arithmethic_decoding(enc, radix, pow, freq) {
+
+    # Multiply enc by radix^pow
+    enc *= radix**pow;
+
+    var base = sum(freq.values)
+
+    # Create the cumulative frequency table
+    var cf = cumulative_freq(freq);
+
+    # Create the dictionary
+    var dict = Hash()
+    cf.eachPair { |k,v|
+        dict[v] = k
+    }
+
+    # Fill the gaps in the dictionary
+    var lchar = ''
+    for i in Range(0, base-1) {
+        if (dict.hasKey(i)) {
+            lchar = dict[i]
+        }
+        elsif (!lchar.isEmpty) {
+            dict[i] = lchar
+        }
+    }
+
+    # Decode the input number
+    var decoded = []
+    for i in Range(base-1, 0, -1) {
+
+        var pow = base**i;
+        var div = enc//pow
+
+        var c  = dict[div]
+        var fv = freq[c]
+        var cv = cf[c]
+
+        var rem = ((enc - pow*cv) // fv)
+
+        enc = rem
+        decoded.append(c)
+    }
+
+    # Return the decoded output
+    return decoded
+}
+
+var radix = 10;      # can be any integer greater or equal with 2
+
+for str in @(DABDDB DABDDBBDDBA ABRACADABRA TOBEORNOTTOBEORTOBEORNOT) {
+
+    var (enc, pow, freq) = arithmethic_coding(str.bytes, radix)
+    var dec = arithmethic_decoding(enc, radix, pow, freq).joinBytes
+
+    printf("%-25s=> %19s * %d^%s\n", str, enc, radix, pow);
+
+    if (str != dec) {
+        die "\tHowever that is incorrect!"
+    }
+}

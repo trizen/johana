@@ -4,7 +4,6 @@ package Sidef::Parser {
     use 5.014;
 
     our $DEBUG = 0;
-    use Sidef::Types::Bool::Bool;
 
     sub new {
         my (undef, %opts) = @_;
@@ -98,8 +97,8 @@ package Sidef::Parser {
                 (?>
                        nil\b                          (?{ state $x = bless({}, 'Sidef::Types::Nil::Nil') })
                      | null\b                         (?{ state $x = Sidef::Types::Null::Null->new })
-                     | true\b                         (?{ Sidef::Types::Bool::Bool::TRUE })
-                     | false\b                        (?{ Sidef::Types::Bool::Bool::FALSE })
+                     | true\b                         (?{ state $x = bless(\(my $bool = 1), 'Sidef::Types::Bool::Bool') })
+                     | false\b                        (?{ state $x = bless(\(my $bool = 0), 'Sidef::Types::Bool::Bool') })
                      | next\b                         (?{ state $x = bless({}, 'Sidef::Types::Block::Next') })
                      | break\b                        (?{ state $x = bless({}, 'Sidef::Types::Block::Break') })
                      | continue\b                     (?{ state $x = bless({}, 'Sidef::Types::Block::Continue') })
@@ -107,8 +106,8 @@ package Sidef::Parser {
                      | STDIN\b                        (?{ state $x = bless({name => 'STDIN'}, 'Sidef::Meta::FileHandle') })
                      | STDOUT\b                       (?{ state $x = bless({name => 'STDOUT'}, 'Sidef::Meta::FileHandle') })
                      | STDERR\b                       (?{ state $x = bless({name => 'STDERR'}, 'Sidef::Meta::FileHandle') })
-                     | Inf\b                          (?{ state $x = Sidef::Types::Number::Inf->new })
-                     | NaN\b                          (?{ state $x = Sidef::Types::Number::Nan->new })
+                     | Inf\b                          (?{ state $x = bless({}, 'Sidef::Types::Number::Inf') })
+                     | NaN\b                          (?{ state $x = bless({}, 'Sidef::Types::Number::Nan') })
                      | Sig\b                          (?{ state $x = Sidef::Sys::Sig->new })
                      | Sys\b                          (?{ state $x = Sidef::Sys::Sys->new })
                      | Perl\b                         (?{ state $x = Sidef::Perl::Perl->new })
@@ -147,40 +146,40 @@ package Sidef::Parser {
             quote_operators_re => qr{\G
              (?:
                 # String
-                 (?: ['‘‚’] | :q\b. )                                      (?{ [qw(0 new Sidef::Types::String::String)] })
-                |(?: ["“„”] | :(?:Q\b. | (?!\w). ))                        (?{ [qw(1 new Sidef::Types::String::String)] })
+                 (?: ['‘‚’] | \@q\b. )                                      (?{ [qw(0 new Sidef::Types::String::String)] })
+                |(?: ["“„”] | \@Q\b. )                                      (?{ [qw(1 new Sidef::Types::String::String)] })
 
                 # File
-                | :f["']                                                    (?{ [qw(0 new Sidef::Types::Glob::File)] })
-                | :F["']                                                    (?{ [qw(1 new Sidef::Types::Glob::File)] })
+                | \@f\b.                                                    (?{ [qw(0 new Sidef::Types::Glob::File)] })
+                | \@F\b.                                                    (?{ [qw(1 new Sidef::Types::Glob::File)] })
 
                 # Dir
-                | :d["']                                                    (?{ [qw(0 new Sidef::Types::Glob::Dir)] })
-                | :D["']                                                    (?{ [qw(1 new Sidef::Types::Glob::Dir)] })
+                | \@d\b.                                                    (?{ [qw(0 new Sidef::Types::Glob::Dir)] })
+                | \@D\b.                                                    (?{ [qw(1 new Sidef::Types::Glob::Dir)] })
 
                 # Pipe
-                | :p["']                                                    (?{ [qw(0 new Sidef::Types::Glob::Pipe)] })
-                | :P["']                                                    (?{ [qw(1 new Sidef::Types::Glob::Pipe)] })
+                | \@p\b.                                                    (?{ [qw(0 new Sidef::Types::Glob::Pipe)] })
+                | \@P\b.                                                    (?{ [qw(1 new Sidef::Types::Glob::Pipe)] })
 
                 # Backtick
-                | :x["']                                                    (?{ [qw(0 new Sidef::Types::Glob::Backtick)] })
-                | (?: :X\b. | ` )                                          (?{ [qw(1 new Sidef::Types::Glob::Backtick)] })
+                | \@x\b.                                                    (?{ [qw(0 new Sidef::Types::Glob::Backtick)] })
+                | (?: \@X\b. | ` )                                          (?{ [qw(1 new Sidef::Types::Glob::Backtick)] })
 
                 # Bytes
-                | :b["']                                                    (?{ [qw(0 bytes Sidef::Types::Array::Array)] })
-                | :B["']                                                    (?{ [qw(1 bytes Sidef::Types::Array::Array)] })
+                | \@b\b.                                                    (?{ [qw(0 bytes Sidef::Types::Array::Array)] })
+                | \@B\b.                                                    (?{ [qw(1 bytes Sidef::Types::Array::Array)] })
 
                 # Chars
-                | :c["']                                                    (?{ [qw(0 chars Sidef::Types::Array::Array)] })
-                | :C["']                                                    (?{ [qw(1 chars Sidef::Types::Array::Array)] })
+                | \@c\b.                                                    (?{ [qw(0 chars Sidef::Types::Array::Array)] })
+                | \@C\b.                                                    (?{ [qw(1 chars Sidef::Types::Array::Array)] })
 
                 # Graphemes
-                | :g["']                                                    (?{ [qw(0 graphemes Sidef::Types::Array::Array)] })
-                | :G["']                                                    (?{ [qw(1 graphemes Sidef::Types::Array::Array)] })
+                | \@g\b.                                                    (?{ [qw(0 graphemes Sidef::Types::Array::Array)] })
+                | \@G\b.                                                    (?{ [qw(1 graphemes Sidef::Types::Array::Array)] })
 
                 # Symbols
-                | :s["']                                                    (?{ [qw(0 __NEW__ Sidef::Module::OO)] })
-                | :S["']                                                    (?{ [qw(0 __NEW__ Sidef::Module::Func)] })
+                | \@s\b.                                                    (?{ [qw(0 __NEW__ Sidef::Module::OO)] })
+                | \@S\b.                                                    (?{ [qw(0 __NEW__ Sidef::Module::Func)] })
              )
             }xs,
             built_in_classes => {
@@ -972,7 +971,7 @@ package Sidef::Parser {
                     push @array, @{$obj->{$self->{class}}};
                 }
 
-                return bless(\@array, 'Sidef::Types::Array::HCArray');
+                return bless(\@array, 'Sidef::Types::Array::Array');
             }
 
             # Bareword followed by a fat comma or preceded by a colon
@@ -1196,7 +1195,8 @@ package Sidef::Parser {
                                         error => q{expected one or more variable names after <enum>},
                                        );
 
-                my $value = Sidef::Types::Number::Number->new(-1);
+                #my $value = Sidef::Types::Number::Number->new(-1);
+                my $value = Math::BigInt->new(-1);
 
                 foreach my $var (@{$vars}) {
                     my $name = $var->{name};
@@ -1231,24 +1231,24 @@ package Sidef::Parser {
                 return $value;
             }
 
-            if (/\G\@(?!:)/gc) {
-                my $pos = pos($_);
-                my $obj = (
-                           /\G(?=\()/
-                           ? $self->parse_arg(code => $opt{code})
-                           : $self->parse_obj(code => $opt{code})
-                          );
+            #~ if (/\G\@(?!:)/gc) {
+            #~ my $pos = pos($_);
+            #~ my $obj = (
+            #~ /\G(?=\()/
+            #~ ? $self->parse_arg(code => $opt{code})
+            #~ : $self->parse_obj(code => $opt{code})
+            #~ );
 
-                if (not defined $obj) {
-                    $self->fatal_error(
-                                       code  => $_,
-                                       pos   => $pos,
-                                       error => "expected an expression after unary operator: '\@'",
-                                      );
-                }
+            #~ if (not defined $obj) {
+            #~ $self->fatal_error(
+            #~ code  => $_,
+            #~ pos   => $pos,
+            #~ error => "expected an expression after unary operator: '\@'",
+            #~ );
+            #~ }
 
-                return {$self->{class} => [{self => $obj, call => [{method => '@*'}]}]};
-            }
+            #~ return {$self->{class} => [{self => $obj, call => [{method => '@*'}]}]};
+            #~ }
 
             # Local variables
             if (/\Glocal\b\h*/gc) {
@@ -1714,12 +1714,17 @@ package Sidef::Parser {
 
             # Binary, hexdecimal and octal numbers
             if (/\G0(b[10_]*|x[0-9A-Fa-f_]*|[0-9_]+\b)/gc) {
-                return Sidef::Types::Number::Number->new("0" . ($1 =~ tr/_//dr), 0);
+
+                #return Sidef::Types::Number::Number->new("0" . ($1 =~ tr/_//dr), 0);
+                #return bless(\my $num = Math::Big
+                return Math::BigInt->new("0" . ($1 =~ tr/_//dr));
             }
 
             # Integer or float number
             if (/\G([+-]?+(?=\.?[0-9])[0-9_]*+(?:\.[0-9_]++)?(?:[Ee](?:[+-]?+[0-9_]+))?)/gc) {
-                return Sidef::Types::Number::Number->new($1 =~ tr/_//dr);
+
+                #return Sidef::Types::Number::Number->new($1 =~ tr/_//dr);
+                return Math::BigRat->new($1 =~ tr/_//dr);
             }
 
             # Prefix `...`
@@ -1752,22 +1757,21 @@ package Sidef::Parser {
                                   );
             }
 
-            # Quoted words or numbers (:w/a b c/)
-            if (/\G:([wWin])\b/gc) {
+            # Quoted words or numbers (@w/a b c/)
+            if (/\G\@([wWin])\b/gc or /\G\@(?!\w)/gc) {
                 my ($type) = $1;
                 my $strings = $self->get_quoted_words(code => $opt{code});
 
-                if ($type eq 'w' or $type eq '<') {
-                    return Sidef::Types::Array::Array->new(map { Sidef::Types::String::String->new(s{\\(?=[\\#\s])}{}gr) }
-                                                           @{$strings});
+                if ($type eq 'w' or $type eq '') {
+                    return
+                      bless([map { Sidef::Types::String::String->new(s{\\(?=[\\#\s])}{}gr) } @{$strings}],
+                            'Sidef::Types::Array::Array');
                 }
                 elsif ($type eq 'i') {
-                    return Sidef::Types::Array::Array->new(map { Sidef::Types::Number::Number->new(s{\\(?=[\\#\s])}{}gr)->int }
-                                                           @{$strings});
+                    return bless([map { Math::BigInt->new(s{\\(?=[\\#\s])}{}gr) } @{$strings}], 'Sidef::Types::Array::Array');
                 }
                 elsif ($type eq 'n') {
-                    return Sidef::Types::Array::Array->new(map { Sidef::Types::Number::Number->new(s{\\(?=[\\#\s])}{}gr) }
-                                                           @{$strings});
+                    return bless([map { Math::BigRat->new(s{\\(?=[\\#\s])}{}gr) } @{$strings}], 'Sidef::Types::Array::Array');
                 }
 
                 my ($inline_expression, @objs);
@@ -1779,8 +1783,8 @@ package Sidef::Parser {
 
                 return (
                         $inline_expression
-                        ? bless([map { {self => $_} } @objs], 'Sidef::Types::Array::HCArray')
-                        : Sidef::Types::Array::Array->new(@objs)
+                        ? bless([map { {self => $_} } @objs], 'Sidef::Types::Array::Array')
+                        : bless(\@objs, 'Sidef::Types::Array::Array')
                        );
             }
 
@@ -1903,7 +1907,9 @@ package Sidef::Parser {
             }
 
             if (/\G__LINE__\b/gc) {
-                return Sidef::Types::Number::Number->new($self->{line});
+
+                #return Sidef::Types::Number::Number->new($self->{line});
+                return Math::BigInt->new($self->{line});
             }
 
             if (/\G__(?:END|DATA)__\b\h*+\R?/gc) {
@@ -2906,10 +2912,10 @@ package Sidef::Parser {
                 redo;
             }
 
-            if (/\G\@:([\pL_][\pL\pN_]*)/gc) {
-                push @{$struct{$self->{class}}}, {self => bless({name => $1}, 'Sidef::Variable::Label')};
-                redo;
-            }
+            #if (/\G\@:([\pL_][\pL\pN_]*)/gc) {
+            #    push @{$struct{$self->{class}}}, {self => bless({name => $1}, 'Sidef::Variable::Label')};
+            #    redo;
+            #}
 
             if (/\Ginclude\b\h*/gc) {
                 my $expr = eval {

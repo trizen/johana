@@ -1,0 +1,12 @@
+#!/usr/bin/johana
+
+func foo(String a) {
+    say "string: #{a}"
+}
+
+func foo(Number n) {
+    say "number: #{n}";
+}
+
+foo("hi")
+foo(42)

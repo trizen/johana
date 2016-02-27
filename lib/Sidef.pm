@@ -11,8 +11,7 @@ package Sidef {
 
     our %EVALS;              # will contain info required for eval()
 
-    use Sidef::Types::Bool::Bool;
-    use Sidef::Types::Number::Number;
+    require Math::BigRat;
 
     sub new {
         bless {}, __PACKAGE__;

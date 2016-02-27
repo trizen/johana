@@ -49,6 +49,8 @@ package Sidef::Deparse::Julia {
             op_alias => {
 
                 '//' => 'div',
+                '**' => '^',
+                '^'  => '$',
 
                 #'==' => 'eq',
                 #'!=' => 'ne',
@@ -101,21 +103,22 @@ package Sidef::Deparse::Julia {
         require File::Spec;
         require File::Basename;
 
-        $opts{header} .= <<"HEADER";
+        $opts{header} .= <<'HEADER';
 module SidefRuntime
 
 import Base.*,
-       Base.!;
+       Base.!,
+       Base.range;
 
-\@inline function call(f::Function, args...)
+@inline function call(f::Function, args...)
     f(args...)
 end
 
-\@inline function say(args...)
+@inline function say(args...)
     println(join(map((x) -> string(x), args), ""))
 end
 
-\@inline function interpolate(::Type{AbstractString}, args...)
+@inline function interpolate(::Type{AbstractString}, args...)
     join(map((x) -> string(x), args), "")
 end
 
@@ -125,7 +128,13 @@ function *(f::Function, i::Int64)
     end
 end
 
-\@inline function each(a::Array, f::Function)
+function *(f::Function, i::Real)
+    for j in 1:Int64(i)
+        f(j)
+    end
+end
+
+@inline function each(a::Array, f::Function)
     for i in a
         f(i)
     end
@@ -139,56 +148,121 @@ function call(::Type{Range}, i::Int64, j::Int64, k::Int64)
     StepRange(i, k, j)
 end
 
-function call(::Type{Range}, i::Number, j::Number)
+function call(::Type{Range}, i::Real, j::Real)
     i:j
 end
 
-function call(::Type{Range}, i::Number, j::Number, k::Number)
+function call(::Type{Range}, i::Real, j::Real, k::Real)
     i:k:j
+end
+
+function call(::Type{Range}, i::Real)
+    1:i
 end
 
 function len(a::Array)
     length(a)
 end
 
-function isEmpty(a::Array)
+function append(a::Array, item)
+    push!(a, item)
+end
+
+function isEmpty(a)
     isempty(a)
 end
 
 function range(i::Int64)
-    0:i-1
+    warn("range() is depreacted; use Range() instead!")
+    1:i
 end
 
-function range(i::Number, j::Number)
+function range(i::Real)
+    warn("range() is depreacted; use Range() instead!")
+    1:i
+end
+
+function range(i::Real, j::Real)
+    warn("range() is depreacted; use Range() instead!")
     i:j
 end
 
-function getIndex(a::Array, i::Number)
+function of(i::Int64, f::Function)
+    arr = []
+    for j in 1:i
+        push!(arr, f(j))
+    end
+    arr
+end
 
-    i = round(Int, i)
-    if (length(a) <= i)
+function of(i::BigInt, f::Function)
+    arr = []
+    for j in 1:Int64(i)
+        push!(arr, f(j))
+    end
+    arr
+end
+
+function times(i::Int64, f::Function)
+    for j in 1:i
+        f(j)
+    end
+end
+
+function times(i::BigInt, f::Function)
+    for j in 1:Int64(i)
+        f(j)
+    end
+end
+
+function getIndex(a::Array, i::Real)
+
+    i = trunc(Int, i)
+    len = length(a)
+
+    if (i < 1)
+        i = ((len + (i % len)) % len) + 1
+    end
+
+    if (len < i)
         return Void()
     end
 
-    a[i+1]
+    a[i]
 end
 
-function setIndex(a::Array, v::Any, i::Number)
+function getIndex(d::Dict, i)
+    haskey(d, i) ? d[i] : Void()
+end
 
-    i = round(Int, i)
+function setIndex(a::Array, v::Any, i::Real)
+
+    i = trunc(Int, i)
     len = length(a)
 
-    if (len <= i)
-        for _ in len:i+1
+    if (i < 1)
+        i = ((len + (i % len)) % len) + 1
+    end
+
+    if (len < i)
+        for _ in len:i
             push!(a, Void())
         end
     end
 
-    a[i+1] = v
+    a[i] = v
+end
+
+function setIndex(d::Dict, v, i)
+    d[i] = v
 end
 
 function !(::Void)
     true
+end
+
+function !(n::Number)
+    n == 0
 end
 
 function toBool(item::Number)
@@ -211,6 +285,10 @@ function toString(item)
     string(item)
 end
 
+function toInt(n::Real)
+    trunc(Integer, n)
+end
+
 function succ(n::Number)
     n+1
 end
@@ -221,6 +299,32 @@ end
 
 function call(::Colon, a, b)
     Pair(a, b)
+end
+
+function bytes(s::AbstractString)
+    b = Int64[]
+    for i in 1:length(s)
+        push!(b, Int(s[i]))
+    end
+    b
+end
+
+function joinBytes(a::Array)
+    join(map((x) -> Char(x), a), "")
+end
+
+function hasKey(d::Dict, k)
+    haskey(d, k)
+end
+
+function eachPair(h::Dict, f::Function)
+    for p in h
+        f(p.first, p.second)
+    end
+end
+
+function printf(fmt::AbstractString, args...)
+    @eval @printf($fmt,$(args...))
 end
 
 HEADER
@@ -492,7 +596,7 @@ HEADER
 
         my $slurpy = @vars && exists($vars[-1]{array});
 
-        $code .= (' ' x $Sidef::SPACES) . "_anys$refaddr = Any[]\n";
+        $code .= (' ' x $Sidef::SPACES) . "_anys$refaddr = []\n";
         $code .=
           (' ' x $Sidef::SPACES) . "for i in 1:(" . @dumped_vars . " - length(_$refaddr)) push!(_anys$refaddr, NIL); end\n";
         $code .= (' ' x $Sidef::SPACES) . "_$refaddr = (_$refaddr..., _anys$refaddr...)\n";
@@ -555,15 +659,7 @@ HEADER
 
         return join(', ', map { ref($_) ? ($self->deparse_expr(ref($_) eq 'HASH' ? $_ : {self => $_})) : $_ } @{$array});
 
-        '[' . join(
-            ', ',
-            map {
-                    ref($_) eq 'Sidef::Types::Number::Number' ? $_->_get_double
-                  : ref($_) ? ($self->deparse_expr(ref($_) eq 'HASH' ? $_ : {self => $_}))
-                  : $_
-              } @{$array}
-          )
-          . ']';
+        '[' . join(', ', map { ref($_) ? ($self->deparse_expr(ref($_) eq 'HASH' ? $_ : {self => $_})) : $_ } @{$array}) . ']';
     }
 
     sub _dump_unpacked_indices {
@@ -585,16 +681,7 @@ HEADER
 
     sub _dump_lookups {
         my ($self, $array) = @_;
-        '[' . join(
-            ', ',
-            map {
-                (ref($_) eq 'Sidef::Types::String::String' or ref($_) eq 'Sidef::Types::Number::Number')
-                  ? $self->_dump_string($_->get_value)
-                  : ref($_) ? ($self->deparse_expr(ref($_) eq 'HASH' ? $_ : {self => $_}))
-                  : $_
-              } @{$array}
-          )
-          . ']';
+        '[' . join(', ', map { ref($_) ? ($self->deparse_expr(ref($_) eq 'HASH' ? $_ : {self => $_})) : $_ } @{$array}) . ']';
     }
 
     sub _dump_unpacked_lookups {
@@ -736,7 +823,7 @@ HEADER
             elsif ($obj->{type} eq 'func' or $obj->{type} eq 'method') {
 
                 if ($addr{$refaddr}++) {
-                    $code = "$obj->{name}$refaddr";
+                    $code = "$obj->{name}";
                 }
                 else {
                     my $block = $obj->{value};
@@ -754,7 +841,7 @@ HEADER
                     }
 
                     # The name of the function
-                    $code .= "begin $obj->{name}$refaddr = ";
+                    #$code .= "begin $obj->{name}$refaddr = ";
 
                     # Deparse the block of the method/function
                     {
@@ -766,16 +853,15 @@ HEADER
                         $code .= $self->deparse_expr({self => $block});
                     }
 
-                    # Check to see if the method/function has kids (can do multiple dispatch)
+                    # Check to see if the method/function has kids (i.e.: can do multiple dispatch)
                     if (exists $obj->{value}{kids}) {
-                        chop $code;
 
                         my @kids = map {
                             local $_->{type} = 'func';
-                            "do{" . $self->deparse_expr({self => $_}) . "}";
+                            $self->deparse_expr({self => $_})
                         } @{$obj->{value}{kids}};
 
-                        $code .= ', kids => [' . join(', ', @kids) . '])';
+                        $code .= ";\n" . join(";\n", @kids);
                     }
 
                     # Check the return value (when "-> Type" is specified)
@@ -832,7 +918,7 @@ HEADER
                         #~ }
                     }
 
-                    $code .= "\n" . (' ' x $Sidef::SPACES) . 'end';
+                    #$code .= "\n" . (' ' x $Sidef::SPACES) . 'end';
                 }
             }
         }
@@ -1189,19 +1275,31 @@ HEADER
             }
         }
         elsif ($ref eq 'Sidef::Types::Number::Number') {
-            $code =
-              $self->make_constant($ref, 'new', "Number$refaddr", join '/',
-                                   map { $self->{opt}{B} ? qq{big"$_"} : $_ } split /\//,
-                                   $obj->_get_frac);
+            $code = $self->{opt}{B} ? qq{big"$$obj"} : $$obj;
+        }
+        elsif ($ref eq 'Math::BigRat') {
+            if ($obj->is_int) {
+                my $int = $obj->as_int;
+                $code = $self->{opt}{B} ? qq{big"$int"} : $int;
+            }
+            else {
+                my ($n, $d) = $obj->parts;
+                $code = $self->{opt}{B} ? qq{BigFloat($n//$d)} : "($n/$d)";
+            }
+        }
+        elsif ($ref eq 'Math::BigInt') {
+            my $int = $obj->bstr;
+
+            $int =~ s/\binf\b/Inf/i;
+            $int =~ s/\bnan\b/NaN/i;
+
+            $code = $int;
         }
         elsif ($ref eq 'Sidef::Types::Number::Inf') {
-            $code = $self->make_constant($ref, 'new', "Inf$refaddr");
-        }
-        elsif ($ref eq 'Sidef::Types::Number::Ninf') {
-            $code = $self->make_constant($ref, 'new', "Ninf$refaddr");
+            $code = 'Inf';
         }
         elsif ($ref eq 'Sidef::Types::Number::Nan') {
-            $code = $self->make_constant($ref, 'new', "Nan$refaddr");
+            $code = 'NaN';
         }
         elsif ($ref eq 'Sidef::Types::String::String') {
             $code = $self->_dump_string($$obj);
@@ -1209,7 +1307,7 @@ HEADER
         elsif ($ref eq 'Sidef::Types::Symbol::Symbol') {
             $code = ':' . $$obj;
         }
-        elsif ($ref eq 'Sidef::Types::Array::Array' or $ref eq 'Sidef::Types::Array::HCArray') {
+        elsif ($ref eq 'Sidef::Types::Array::Array') {
             $code = $self->_dump_array('Sidef::Types::Array::Array', $obj);
         }
         elsif ($ref eq 'Sidef::Types::Bool::Bool') {
@@ -1462,7 +1560,7 @@ HEADER
         }
         elsif ($ref eq 'Sidef::Meta::Error') {
             my @args = $self->deparse_args($obj->{arg});
-            $code = qq~do{CORE::die(@args, " at \Q$obj->{file}\E line $obj->{line}\\n")}~;
+            $code = qq~error(@args, " at \Q$obj->{file}\E line $obj->{line}\\n")~;
         }
         elsif ($ref eq 'Sidef::Meta::Warning') {
             my @args = $self->deparse_args($obj->{arg});
@@ -1524,7 +1622,8 @@ HEADER
                           . $self->_dump_indices($pos) . ')';
                     }
                     else {
-                        $code = "getIndex($code," . $self->_dump_indices($pos) . ')';
+                        my $indices = $self->_dump_indices($pos);
+                        $code = "getIndex($code, $indices)";
                     }
                 }
                 else {
@@ -1541,7 +1640,9 @@ HEADER
 
                 if ($i < $limit) {
                     if ($expr->{ind}[$i + 1]{array}) {
-                        $code = '(' . $code . ' //= Sidef::Types::Array::Array->new' . ')';
+
+                        #$code = '(' . $code . ' //= Sidef::Types::Array::Array->new' . ')';
+                        # $code =  "($code == Void() ? ($code = Array()) : $code)";
                     }
                     else {
                         $code = '(' . $code . ' //= Sidef::Types::Hash::Hash->new' . ')';
@@ -1701,6 +1802,8 @@ HEADER
 
                     # <=> method
                     if ($method eq '<=>') {
+                        die "ERROR: Comparison operator is not implemented yet...";
+
                         $code =
                             '((Sidef::Types::Number::Number::ZERO,'
                           . 'Sidef::Types::Number::Number::ONE,'
@@ -1784,13 +1887,18 @@ HEADER
                         else {
                             #$code .= $method; #'->${\\' . q{'} . $method . q{'} . '}';
 
-                            if ($method eq '^') {
-                                $method = '$';
+                            if (exists $self->{op_alias}{$method}) {
+                                $method = $self->{op_alias}{$method};
                             }
-                            elsif ($method eq '**') {
-                                $method = '^';
-                            }
-                            elsif ($method eq '...') {
+
+                            #if ($method eq '^') {
+                            #    $method = '$';
+                            #}
+                            #elsif ($method eq '**') {
+                            #    $method = '^';
+                            #}
+                            #els
+                            if ($method eq '...') {
                                 if (not exists $call->{arg}) {
                                     $code .= '...';
                                     next;
