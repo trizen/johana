@@ -2538,7 +2538,7 @@ package Sidef::Parser {
                             line  => $self->{line},
                           };
 
-                        /\G\h*,\h*/gc && next;
+                        /\G\h*,\h*/gc || last;
                     }
 
                     /\G\h*in\h*/gc
