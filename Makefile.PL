@@ -3,7 +3,7 @@ require 5.016001;
 use ExtUtils::MakeMaker;
 WriteMakefile
 (
-  'NAME' => 'Sidef',
+  'NAME' => 'Johana',
   'VERSION_FROM' => 'lib/Sidef.pm',
   'PREREQ_PM' => {
                    'Cwd' => 0,
@@ -16,6 +16,7 @@ WriteMakefile
                    'File::Spec' => 0,
                    'Getopt::Std' => 0,
                    'List::Util' => '1.33',
+                   'Math::BigInt' => 0,
                    'Math::BigRat' => 0,
                    'POSIX' => 0,
                    'Scalar::Util' => 0,

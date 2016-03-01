@@ -11,7 +11,7 @@ use Module::Build;
 
 my $builder = Module::Build->new(
 
-    module_name        => 'Sidef',
+    module_name        => 'Johana',
     license            => 'perl',
     dist_author        => q{Daniel Șuteu   (<trizenx@gmail.com>)},
     dist_version_from  => 'lib/Sidef.pm',
@@ -41,6 +41,7 @@ my $builder = Module::Build->new(
                  'File::Basename' => 0,
                  'List::Util'     => 1.33,
                  'Math::BigRat'   => 0,
+                 'Math::BigInt'   => 0,
                  'Socket'         => 0,
                  'Fcntl'          => 0,
                  'Encode'         => 0,
@@ -53,22 +54,15 @@ my $builder = Module::Build->new(
                 },
 
     auto_features => {
-        dump_support => {
-                         description => "Dump the AST of a parsed source code. (-d, -D)",
-                         requires    => {
-                                      'Data::Dump' => 0,
-                                     },
-                        },
-
-        GMP_support => {
-                        description => "Faster numerical computation, using the GMP library",
-                        requires    => {
-                                     'Math::BigInt::GMP' => 0,
-                                    }
-                       },
+                      dump_support => {
+                                       description => "Dump the AST of a parsed source code. (-d, -D)",
+                                       requires    => {
+                                                    'Data::Dump' => 0,
+                                                   },
+                                      },
                      },
 
-    add_to_cleanup     => ['Sidef-*'],
+    add_to_cleanup     => ['Johana-*'],
     create_makefile_pl => 'traditional',
 );
 
