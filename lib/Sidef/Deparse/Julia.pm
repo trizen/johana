@@ -95,10 +95,14 @@ package Sidef::Deparse::Julia {
 
             inc_dec_ops => {
                             '++' => 'succ',
-                            '--' => 'prev',
+                            '--' => 'pred',
                            },
             %args,
                    );
+
+        if ($opts{opt}{rational}) {
+            $opts{op_alias}{'/'} = '//';
+        }
 
         require File::Spec;
         require File::Basename;
@@ -108,6 +112,7 @@ module SidefRuntime
 
 import Base.*,
        Base.!,
+       Base.isodd,
        Base.range;
 
 @inline function call(f::Function, args...)
@@ -170,6 +175,26 @@ end
 
 function isEmpty(a)
     isempty(a)
+end
+
+function isOne(n::Number)
+    1 == n
+end
+
+function isodd(r::Rational)
+    den(r) == 1 ? isodd(num(r)) : false
+end
+
+function numerator(r::Rational)
+    num(r)
+end
+
+function denominator(r::Rational)
+    den(r)
+end
+
+function isOdd(n::Number)
+    isodd(n)
 end
 
 function range(i::Int64)
@@ -293,7 +318,7 @@ function succ(n::Number)
     n+1
 end
 
-function prev(n::Number)
+function pred(n::Number)
     n-1
 end
 
@@ -1284,7 +1309,12 @@ HEADER
             }
             else {
                 my ($n, $d) = $obj->parts;
-                $code = $self->{opt}{B} ? qq{BigFloat($n//$d)} : "($n/$d)";
+                if ($self->{opt}{rational}) {
+                    $code = "($n//$d)";
+                }
+                else {
+                    $code = $self->{opt}{B} ? qq{BigFloat($n//$d)} : "($n/$d)";
+                }
             }
         }
         elsif ($ref eq 'Math::BigInt') {
@@ -1744,7 +1774,9 @@ HEADER
                     # Lazy operators, such as: ||, &&, etc...
                     if (exists($self->{lazy_ops}{$method})) {
                         $code =
-                          "toBool($code)" . $self->{lazy_ops}{$method} . $self->deparse_block_expr(@{$call->{arg}}) . ' ';
+                            "toBool(begin $code end)"
+                          . $self->{lazy_ops}{$method}
+                          . $self->deparse_block_expr(@{$call->{arg}}) . ' ';
                         next;
                     }
 

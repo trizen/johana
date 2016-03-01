@@ -5,6 +5,7 @@ examples/ack.jh
 examples/anonymous_recursion.jh
 examples/arithmetic_coding.jh
 examples/array_callback.jh
+examples/bernoulli_numbers.jh
 examples/fib.jh
 examples/for_loop.jh
 examples/for_loop2.jh

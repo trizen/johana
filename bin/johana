@@ -93,8 +93,10 @@ if (defined $args{t}) {
         @Sidef::NAMESPACES = ();
         %Sidef::INCLUDED   = ();
 
+        my %opts = %args;
+
         my $code   = read_script($script_name);
-        my $parser = new_parser(name => $script_name);
+        my $parser = new_parser(name => $script_name, opts => \%opts);
         my $struct = eval { parse_code($parser, $code) };
 
         my $slept = 0;
@@ -110,7 +112,7 @@ if (defined $args{t}) {
                 die "Stopped by user...";
             };
 
-            execute_struct($struct, 1);
+            execute_struct($struct, 1, \%opts);
         }
 
         if (not($slept) and $@) {
@@ -185,7 +187,7 @@ else {
     # Execute the struct
     else {
         local $Sidef::PARSER = $parser;
-        execute_struct($struct);
+        execute_struct($struct, 0, \%args);
     }
 }
 
@@ -204,7 +206,7 @@ sub read_script {
 sub new_parser {
     my (%opt) = @_;
     Sidef::Parser->new(
-                       opt         => \%args,
+                       opt         => $opt{opts},
                        file_name   => $opt{name},
                        script_name => $opt{name},
                       );
@@ -254,15 +256,15 @@ sub parse_code {
 }
 
 sub execute_struct {
-    my ($struct, $return) = @_;
+    my ($struct, $return, $opts) = @_;
     state $count = 0;
 
     my $environment_name = 'Sidef::Runtime' . CORE::abs(++$count);
     my $deparser = Sidef::Deparse::Julia->new(
-                                             opt              => \%args,
-                                             namespaces       => [@Sidef::NAMESPACES],
-                                             environment_name => $environment_name,
-                                            );
+                                              opt              => $opts,
+                                              namespaces       => [@Sidef::NAMESPACES],
+                                              environment_name => $environment_name,
+                                             );
     local $Sidef::DEPARSER = $deparser;
     my $code = $deparser->deparse($struct);
     $return ? system("julia", "-e", $code) : exec("julia", "-e", $code);
@@ -372,7 +374,7 @@ HELP
         my @refs = (
             map { ref($_) } do {
                 local $Sidef::PARSER = $parser;
-                execute_struct($struct, 1);
+                execute_struct($struct, 1, \%args);
               }
         );
 
@@ -500,7 +502,7 @@ EOT
             local $Sidef::Types::Number::Number::PREC = 4 * $args{P} if exists($args{P});
             my $result = do {
                 local $Sidef::PARSER = $parser;
-                execute_struct($struct, 1);
+                execute_struct($struct, 1, \%args);
             };
             print $@ if $@;
             use overload;

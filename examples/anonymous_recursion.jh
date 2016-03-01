@@ -1,5 +1,7 @@
 #!/usr/bin/ruby
 
+# http://rosettacode.org/wiki/Anonymous_recursion
+
 { |i|
     func (n) {
         if (n < 0) { return }

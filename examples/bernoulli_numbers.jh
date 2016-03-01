@@ -1,0 +1,24 @@
+#!/usr/bin/ruby
+
+#:rational=1
+
+func bern_helper(n, k) {
+    binomial(n, k) * (bernoulli_number(k) / (n - k + 1))
+}
+
+func bern_diff(n, k, d) {
+    n < k ? d : bern_diff(n, k + 1, d - bern_helper(n + 1, k))
+}
+
+ func bernoulli_number(n) {
+
+    n.isOne && return 1/2
+    n.isOdd && return   0
+
+    n > 0 ? bern_diff(n - 1, 0, 1) : 1
+}
+
+for i in Range(0, 25) {
+    var num = bernoulli_number(i) || next
+    printf("B(%2d) = %20s / %s\n", i, num.num, num.den)
+}

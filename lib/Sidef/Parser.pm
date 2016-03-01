@@ -856,6 +856,10 @@ package Sidef::Parser {
                 }
             }
 
+            if (/\G#+:(\w+)=(.*\S)/gc) {
+                $self->{opt}{$1} = $2;
+            }
+
             # Embedded comments (http://perlcabal.org/syn/S02.html#Embedded_Comments)
             if (/\G#`(?=[[:punct:]])/gc) {
                 $self->get_quoted_string(code => $opt{code});

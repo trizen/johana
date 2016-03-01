@@ -1,5 +1,7 @@
 #!/usr/bin/ruby
 
+# http://rosettacode.org/wiki/Ackermann_function
+
 func A(m, n) {
     m == 0 ? (n + 1)
            : (n == 0 ? (A(m - 1, 1))
