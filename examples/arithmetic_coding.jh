@@ -19,12 +19,7 @@ func arithmethic_coding(bytes, radix=10) {
     # The frequency characters
     var freq = Hash()
     for b in bytes {
-        if (freq.hasKey(b)) {
-            freq[b] = (freq[b] + 1)
-        }
-        else {
-           freq[b] = 1
-        }
+        freq[b] += 1;
     }
 
     # The cumulative frequency table

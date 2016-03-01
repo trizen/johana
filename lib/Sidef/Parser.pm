@@ -2452,13 +2452,41 @@ package Sidef::Parser {
                     push @{$struct->{$self->{class}}[-1]{ind}}, {array => $ind};
                 }
 
-                if (/\G\h*(?!==|=>|=~)=\h*/gc) {
-                    my $arg = (
-                               /\G(?=\()/
-                               ? $self->parse_arg(code => \$_)
-                               : $self->parse_obj(code => \$_)
-                              );
-                    $struct->{$self->{class}}[-1]{ind}[-1]{assign} = $arg;
+                if (/\G\h*(?!==|=>|=~)/gc) {
+
+                    if (
+                        /\G
+                        (
+                              \*\*
+                            | &&
+                            | \|\|
+                            | [-+\/*%\^&|]
+                        )?
+                     =\h*/gcx
+                      ) {
+                        my $op = $1;
+                        my $arg = (
+                                   /\G(?=\()/
+                                   ? $self->parse_arg(code => \$_)
+                                   : $self->parse_obj(code => \$_)
+                                  );
+
+                        if ($op) {
+                            $struct->{$self->{class}}[-1]{ind}[-1]{assign} = {
+                                                             self => $struct->{$self->{class}}[-1]{self},
+                                                             call => [
+                                                                      {
+                                                                       method => $op,
+                                                                       arg    => [$arg],
+                                                                      }
+                                                                     ],
+                                                             ind => [{array => $struct->{$self->{class}}[-1]{ind}[-1]{array}}],
+                            };
+                        }
+                        else {
+                            $struct->{$self->{class}}[-1]{ind}[-1]{assign} = $arg;
+                        }
+                    }
                 }
 
                 $parsed ||= 1;

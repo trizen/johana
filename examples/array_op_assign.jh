@@ -1,0 +1,12 @@
+#!/usr/bin/ruby
+
+var t = [0,1]
+
+t[2] += 42
+t[1] ||= 32
+
+say t
+
+if (t != [32, 43]) {
+    die "error: #{t}"
+}

@@ -111,6 +111,7 @@ package Sidef::Deparse::Julia {
 module SidefRuntime
 
 import Base.*,
+       Base.+,
        Base.!,
        Base.isodd,
        Base.range;
@@ -137,6 +138,14 @@ function *(f::Function, i::Real)
     for j in 1:Int64(i)
         f(j)
     end
+end
+
+function +(::Void, n::Number)
+    n
+end
+
+function +(::Void, s::AbstractString)
+    s
 end
 
 @inline function each(a::Array, f::Function)
@@ -1648,14 +1657,13 @@ HEADER
                     #$code .= $self->_dump_indices($pos);
                     #}
 
+                    my $indices = $self->_dump_indices($pos);
+
                     if (exists $ind->{assign}) {
-                        $code =
-                            "setIndex($code,"
-                          . $self->deparse_expr({self => $ind->{assign}}) . ','
-                          . $self->_dump_indices($pos) . ')';
+                        my $assign = $self->deparse_expr({self => $ind->{assign}});
+                        $code = "setIndex($code," . $assign . ',' . $indices . ')';
                     }
                     else {
-                        my $indices = $self->_dump_indices($pos);
                         $code = "getIndex($code, $indices)";
                     }
                 }
