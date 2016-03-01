@@ -7,7 +7,7 @@ func jaro(s, t) {
     var s_len = s.len
     var t_len = t.len
 
-    var match_distance = ((max(s_len, t_len) // 2) - 1)
+    var match_distance = ((floor(max(s_len, t_len) / 2)) - 1)
 
     var s_matches = []
     var t_matches = []
@@ -16,6 +16,7 @@ func jaro(s, t) {
     var transpositions = 0
 
     for i in Range(s_len) {
+
         var start = max(1, i - match_distance)
         var end = min(i+match_distance, t_len)
 

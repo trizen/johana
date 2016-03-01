@@ -1886,7 +1886,7 @@ package Sidef::Parser {
                 my $type = $^R;
 
                 if (/\G(?=\()/gc) {
-                    return bless({arg => $self->parse_arg(code => \$_)}, ref($type));
+                    return bless({arg => $self->parse_arg(code => $opt{code})}, ref($type));
                 }
 
                 return $type;
@@ -1984,6 +1984,26 @@ package Sidef::Parser {
                 /\G__METHOD_NAME__\b/gc && return Sidef::Types::String::String->new($self->{current_method}{name});
             }
 
+            # Function call
+            if (/\G($self->{var_name_re})(?=\()/goc) {
+                my $func = $1;
+                my $arg = $self->parse_arg(code => $opt{code});
+
+                return
+                  scalar {
+                          $self->{class} => [
+                                             {
+                                              self => $arg,
+                                              call => [
+                                                       {
+                                                        method => $func,
+                                                       }
+                                                      ],
+                                             },
+                                            ]
+                         };
+            }
+
             # Variable call
             if (/\G($self->{var_name_re})/goc) {
                 my ($name, $class) = $self->get_name_and_class($1);
@@ -2072,41 +2092,41 @@ package Sidef::Parser {
                     return $var;
                 }
 
-                # Type constant
-                my $obj;
-                if (
-                        not $self->{_want_name}
-                    and $class ne $self->{class}
-                    and defined(
-                        eval {
-                            local $self->{_want_name} = 1;
-                            my $code = $class;
-                            ($obj) = $self->parse_expr(code => \$code);
-                            $obj;
-                        }
-                    )
-                  ) {
-                    return
-                      bless(
-                            {
-                             name => '__CONST__',
-                             expr => {
-                                      $self->{class} => [
-                                                         {
-                                                          self => $obj,
-                                                          call => [
-                                                                   {
-                                                                    method => 'get_constant',
-                                                                    arg    => [Sidef::Types::String::String->new($name)]
-                                                                   }
-                                                                  ]
-                                                         }
-                                                        ]
-                                     }
-                            },
-                            'Sidef::Variable::Static'
-                           );
-                }
+                #~ # Type constant
+                #~ my $obj;
+                #~ if (
+                #~ not $self->{_want_name}
+                #~ and $class ne $self->{class}
+                #~ and defined(
+                #~ eval {
+                #~ local $self->{_want_name} = 1;
+                #~ my $code = $class;
+                #~ ($obj) = $self->parse_expr(code => \$code);
+                #~ $obj;
+                #~ }
+                #~ )
+                #~ ) {
+                #~ return
+                #~ bless(
+                #~ {
+                #~ name => '__CONST__',
+                #~ expr => {
+                #~ $self->{class} => [
+                #~ {
+                #~ self => $obj,
+                #~ call => [
+                #~ {
+                #~ method => 'get_constant',
+                #~ arg    => [Sidef::Types::String::String->new($name)]
+                #~ }
+                #~ ]
+                #~ }
+                #~ ]
+                #~ }
+                #~ },
+                #~ 'Sidef::Variable::Static'
+                #~ );
+                #~ }
 
                 # Method call in functional style
                 if (not $self->{_want_name} and ($class eq $self->{class} or $class eq 'CORE')) {
@@ -2452,23 +2472,23 @@ package Sidef::Parser {
                     push @{$struct->{$self->{class}}[-1]{ind}}, {array => $ind};
                 }
 
-                if (/\G\h*(?!==|=>|=~)/gc) {
+                if (/\G(?!\h*(?:==|=>|=~))/) {
 
                     if (
-                        /\G
+                        /\G\h*
                         (
                               \*\*
                             | &&
                             | \|\|
-                            | [-+\/*%\^&|]
+                            | [\-+\/*%\^&|]
                         )?
                      =\h*/gcx
                       ) {
                         my $op = $1;
                         my $arg = (
                                    /\G(?=\()/
-                                   ? $self->parse_arg(code => \$_)
-                                   : $self->parse_obj(code => \$_)
+                                   ? $self->parse_arg(code => $opt{code})
+                                   : $self->parse_obj(code => $opt{code})
                                   );
 
                         if ($op) {
@@ -2493,30 +2513,30 @@ package Sidef::Parser {
                 redo;
             }
 
-            if (/\G\h*(?=\()/gc) {
+            #~ if (/\G\h*(?=\()/gc) {
 
-                $struct->{$self->{class}}[-1]{self} = {
-                        $self->{class} => [
-                            {
-                             self => $struct->{$self->{class}}[-1]{self},
-                             exists($struct->{$self->{class}}[-1]{call}) ? (call => delete $struct->{$self->{class}}[-1]{call})
-                             : (),
-                             exists($struct->{$self->{class}}[-1]{ind}) ? (ind => delete $struct->{$self->{class}}[-1]{ind})
-                             : (),
-                            }
-                        ]
-                };
+            #~ $struct->{$self->{class}}[-1]{self} = {
+            #~ $self->{class} => [
+            #~ {
+            #~ self => $struct->{$self->{class}}[-1]{self},
+            #~ exists($struct->{$self->{class}}[-1]{call}) ? (call => delete $struct->{$self->{class}}[-1]{call})
+            #~ : (),
+            #~ exists($struct->{$self->{class}}[-1]{ind}) ? (ind => delete $struct->{$self->{class}}[-1]{ind})
+            #~ : (),
+            #~ }
+            #~ ]
+            #~ };
 
-                my $arg = $self->parse_arg(code => $opt{code});
+            #~ my $arg = $self->parse_arg(code => $opt{code});
 
-                push @{$struct->{$self->{class}}[-1]{call}},
-                  {
-                    method => 'call',
-                    (%{$arg} ? (arg => [$arg]) : ())
-                  };
+            #~ push @{$struct->{$self->{class}}[-1]{call}},
+            #~ {
+            #~ method => 'call',
+            #~ (%{$arg} ? (arg => [$arg]) : ())
+            #~ };
 
-                redo;
-            }
+            #~ redo;
+            #~ }
         }
 
         $parsed;
@@ -2765,17 +2785,17 @@ package Sidef::Parser {
                 #    redo;
                 #}
 
-                if (/\G(?=\()/gc) {
-                    my $arg = $self->parse_arg(code => $opt{code});
+                #~ if (/\G(?=\()/gc) {
+                #~ my $arg = $self->parse_arg(code => $opt{code});
 
-                    push @{$struct{$self->{class}}[-1]{call}},
-                      {
-                        method => 'call',
-                        (%{$arg} ? (arg => [$arg]) : ())
-                      };
+                #~ push @{$struct{$self->{class}}[-1]{call}},
+                #~ {
+                #~ method => 'call',
+                #~ (%{$arg} ? (arg => [$arg]) : ())
+                #~ };
 
-                    redo;
-                }
+                #~ redo;
+                #~ }
 
                 # Do-while construct
                 if (ref($obj) eq 'Sidef::Types::Block::Do' and /\G\h*while\b/gc) {

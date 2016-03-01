@@ -15,6 +15,7 @@ examples/jaro_distance.jh
 examples/matrix.jh
 examples/multiple_dispatch.jh
 examples/types.jh
+examples/variable_vs_function.sf
 examples/vars.jh
 lib/Sidef.pm
 lib/Sidef/Convert/Convert.pm

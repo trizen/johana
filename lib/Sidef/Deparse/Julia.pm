@@ -1782,9 +1782,9 @@ HEADER
                     # Lazy operators, such as: ||, &&, etc...
                     if (exists($self->{lazy_ops}{$method})) {
                         $code =
-                            "toBool(begin $code end)"
+                            "(toBool(begin $code end)"
                           . $self->{lazy_ops}{$method}
-                          . $self->deparse_block_expr(@{$call->{arg}}) . ' ';
+                          . $self->deparse_block_expr(@{$call->{arg}}) . ')';
                         next;
                     }
 

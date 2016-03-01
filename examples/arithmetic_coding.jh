@@ -2,6 +2,8 @@
 
 # Work with: johana -B arithmetic_coding.jh
 
+#:B=1
+
 func cumulative_freq(freq) {
     var cf = Hash()
     var total = 0

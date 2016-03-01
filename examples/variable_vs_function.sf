@@ -1,0 +1,9 @@
+#!/usr/bin/ruby
+
+# There is a difference between a variable and a function call; we can have them both
+
+var gcd = 42;
+
+say gcd;            # prints: 42
+say gcd(27, 93)     # prints: 3
+say gcd;            # prints: 42

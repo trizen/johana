@@ -32,7 +32,7 @@ sub NATIVE () { 0 }
 my %args;
 if ($#ARGV != -1 and chr ord $ARGV[0] eq '-') {
     require Getopt::Std;
-    Getopt::Std::getopts('e:E:Dho:ivHWwbcrR:ts:CO:kP:M:B', \%args);
+    Getopt::Std::getopts('e:E:Dho:ivHWwbrR:ts:CO:kP:M:B', \%args);
 }
 
 # Help
@@ -96,7 +96,7 @@ if (defined $args{t}) {
         my %opts = %args;
 
         my $code   = read_script($script_name);
-        my $parser = new_parser(name => $script_name, opts => \%opts);
+        my $parser = new_parser(name => $script_name, opt => \%opts);
         my $struct = eval { parse_code($parser, $code) };
 
         my $slept = 0;
@@ -108,11 +108,9 @@ if (defined $args{t}) {
         else {
             local $Sidef::PARSER = $parser;
 
-            local $SIG{INT} = sub {
-                die "Stopped by user...";
+            execute_struct($struct, 1, \%opts) && do {
+                $@ = "Something went wrong...";
             };
-
-            execute_struct($struct, 1, \%opts);
         }
 
         if (not($slept) and $@) {
@@ -144,8 +142,10 @@ else {
 
     $code // exit 2;
 
+    my %opts = %args;
+
     # Parse the code
-    my $parser = new_parser(name => $script_name);
+    my $parser = new_parser(name => $script_name, opt => \%opts);
     my $struct = parse_code($parser, $code);
 
     # Dump the data structure
@@ -155,7 +155,7 @@ else {
 
     # Deparse code
     elsif (defined($args{r}) or defined($args{R})) {
-        my $deparsed = deparse_structure($struct, $args{R});
+        my $deparsed = deparse_structure($struct, $args{R}, \%opts);
 
         if (defined($args{R}) and lc($args{R}) eq 'perl') {
 
@@ -174,11 +174,6 @@ else {
         output($deparsed);
     }
 
-    # Compile the struct to a Perl program
-    elsif (defined $args{c}) {
-        compile_to_perl(code => deparse_structure($struct, 'Perl'), type => NATIVE);
-    }
-
     # Check the syntax
     elsif (defined $args{C}) {
         say "$script_name syntax OK";
@@ -187,7 +182,7 @@ else {
     # Execute the struct
     else {
         local $Sidef::PARSER = $parser;
-        execute_struct($struct, 0, \%args);
+        execute_struct($struct, 0, \%opts);
     }
 }
 
@@ -206,7 +201,7 @@ sub read_script {
 sub new_parser {
     my (%opt) = @_;
     Sidef::Parser->new(
-                       opt         => $opt{opts},
+                       opt         => $opt{opt},
                        file_name   => $opt{name},
                        script_name => $opt{name},
                       );
@@ -236,14 +231,14 @@ sub parse_code {
 
         # Deparse the AST into code, then parse the code again.
         if ($args{O} >= 2) {
-            my $deparser = Sidef::Deparse::Sidef->new(namespaces => [@Sidef::NAMESPACES]);
+            my $deparser = Sidef::Deparse::Sidef->new(namespaces => [@Sidef::NAMESPACES], opt => $parser->{opt});
             my $code = $deparser->deparse($struct);
 
             local %Sidef::INCLUDED;
             local @Sidef::NAMESPACES;
 
             $struct = Sidef::Parser->new(
-                                         opt         => \%args,
+                                         opt         => $parser->{opt},
                                          file_name   => $parser->{file_name},
                                          script_name => $parser->{script_name},
                                         )->parse_script(code => \$code);
@@ -274,7 +269,6 @@ sub output_usage {
 #<<<
     my %switches = (
                     '-i'         => 'interactive mode',
-                    '-c'         => 'compile the code as a stand-alone Perl program',
                     '-C'         => 'check syntax only',
                     '-B'         => 'instructs the compiler to use big numbers',
                     '-D'         => 'dump the syntax tree of a program',
@@ -361,7 +355,9 @@ HELP
             return;
         }
 
-        my $parser = new_parser(name => '-H');
+        my %opts = %args;
+
+        my $parser = new_parser(name => '-H', opt => \%opts);
         $parser->{interactive} = 1;
 
         my $struct = eval { parse_code($parser, $line) };
@@ -374,7 +370,7 @@ HELP
         my @refs = (
             map { ref($_) } do {
                 local $Sidef::PARSER = $parser;
-                execute_struct($struct, 1, \%args);
+                execute_struct($struct, 1, \%opts);
               }
         );
 
@@ -402,7 +398,8 @@ sub code_interactive {
 
     my $term = Term::ReadLine->new("$name $version -- interactive mode");
 
-    my $parser = new_parser(name => '-i');
+    my %opts = %args;
+    my $parser = new_parser(name => '-i', opt => \%opts);
     $parser->{interactive} = 1;
 
     print qq{$name $version on $^O\n};
@@ -496,13 +493,13 @@ EOT
         }
 
         if (defined($args{r}) or defined($args{R})) {
-            output(deparse_structure($struct, $args{R}));
+            output(deparse_structure($struct, $args{R}), \%opts);
         }
         else {
             local $Sidef::Types::Number::Number::PREC = 4 * $args{P} if exists($args{P});
             my $result = do {
                 local $Sidef::PARSER = $parser;
-                execute_struct($struct, 1, \%args);
+                execute_struct($struct, 1, \%opts);
             };
             print $@ if $@;
             use overload;
@@ -538,14 +535,14 @@ sub _get_loaded_modules {
 }
 
 sub deparse_structure {
-    my ($struct, $arg) = @_;
+    my ($struct, $arg, $opts) = @_;
 
     my $lang   = $arg // 'Johana';
     my $module = "Sidef::Deparse::\u\L$lang";
     my $pm     = ($module =~ s{::}{/}gr . '.pm');
 
     require $pm;
-    my $deparser = $module->new(namespaces => [@Sidef::NAMESPACES], opt => \%args);
+    my $deparser = $module->new(namespaces => [@Sidef::NAMESPACES], opt => $opts);
     my $code = $deparser->deparse($struct);
 
     return $code;
@@ -639,7 +636,7 @@ HEAD
 
                  close $fh;
              }
-         }
+           }
         } => ($path, $INC{'Sidef.pm'})
     );
 
